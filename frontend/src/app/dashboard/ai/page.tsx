@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Bot, Lightbulb, Sparkles } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,11 +36,14 @@ const suggestions = [
 
 export default function AiPage() {
   const [prompt, setPrompt] = useState("");
-  const [generatedSuggestions, setGeneratedSuggestions] = useState<string[]>(suggestions);
+  const [generatedSuggestions, setGeneratedSuggestions] =
+    useState<string[]>(suggestions);
 
   const analyzeMutation = useMutation({
     mutationFn: async (text: string) => {
-      const response = await api.post<AnalyzeResponse>("/ai/analyze", { prompt: text });
+      const response = await api.post<AnalyzeResponse>("/ai/analyze", {
+        prompt: text,
+      });
       return response.data;
     },
     onSuccess: (data) => {
@@ -57,7 +66,9 @@ export default function AiPage() {
 
   const draftRuleMutation = useMutation({
     mutationFn: async (text: string) => {
-      const response = await api.post<DecideResponse>("/ai/decide", { prompt: text });
+      const response = await api.post<DecideResponse>("/ai/decide", {
+        prompt: text,
+      });
       return response.data;
     },
     onSuccess: (data) => {
@@ -91,8 +102,12 @@ export default function AiPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5" /> Ask the Assistant</CardTitle>
-          <CardDescription>Integrated with AI analyze/decide endpoints, with fallback behavior.</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Bot className="h-5 w-5" /> Ask the Assistant
+          </CardTitle>
+          <CardDescription>
+            Integrated with AI analyze/decide endpoints, with fallback behavior.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Textarea
@@ -114,7 +129,9 @@ export default function AiPage() {
               onClick={() => draftRuleMutation.mutate(prompt)}
               disabled={draftRuleMutation.isPending || !prompt.trim()}
             >
-              {draftRuleMutation.isPending ? "Drafting..." : "Generate Rule Draft"}
+              {draftRuleMutation.isPending
+                ? "Drafting..."
+                : "Generate Rule Draft"}
             </Button>
           </div>
         </CardContent>
@@ -122,11 +139,18 @@ export default function AiPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Lightbulb className="h-5 w-5" /> Suggested Actions</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Lightbulb className="h-5 w-5" /> Suggested Actions
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {generatedSuggestions.map((item, idx) => (
-            <div key={idx} className="rounded-md border bg-white p-3 text-sm text-gray-700">{item}</div>
+            <div
+              key={idx}
+              className="rounded-md border bg-white p-3 text-sm text-gray-700"
+            >
+              {item}
+            </div>
           ))}
         </CardContent>
       </Card>

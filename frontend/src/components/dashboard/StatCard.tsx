@@ -9,15 +9,25 @@ interface StatCardProps {
   accentClassName?: string;
 }
 
-export function StatCard({ title, value, icon: Icon, accentClassName }: StatCardProps) {
+export function StatCard({
+  title,
+  value,
+  icon: Icon,
+  accentClassName,
+}: StatCardProps) {
   return (
-    <Card className={cn("border bg-white", accentClassName)}>
+    <Card
+      className={cn(
+        "border border-border bg-card text-card-foreground",
+        accentClassName,
+      )}
+    >
       <CardHeader className="pb-2">
         <CardTitle className="text-sm text-muted-foreground">{title}</CardTitle>
       </CardHeader>
       <CardContent className="flex items-center justify-between">
         <span className="text-2xl font-bold">{value}</span>
-        {Icon ? <Icon className="h-5 w-5 text-slate-600" /> : null}
+        {Icon ? <Icon className="h-5 w-5 text-muted-foreground" /> : null}
       </CardContent>
     </Card>
   );

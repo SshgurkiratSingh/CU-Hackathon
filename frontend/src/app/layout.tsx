@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import QueryProvider from "@/providers/query-provider";
 import UiPreferencesProvider from "@/components/ui-preferences-provider";
+import ParallaxBackground from "@/components/ParallaxBackground";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,10 +28,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased font-sans bg-background text-foreground`}
+        className={`${geistSans.variable} ${geistMono.variable} relative overflow-x-hidden bg-transparent antialiased font-sans text-foreground`}
       >
         <UiPreferencesProvider>
-          <QueryProvider>{children}</QueryProvider>
+          <QueryProvider>
+            <ParallaxBackground />
+            <div className="relative z-10">{children}</div>
+          </QueryProvider>
         </UiPreferencesProvider>
       </body>
     </html>

@@ -1,17 +1,34 @@
 "use client";
 
-import { Bell, Paintbrush, Shield, SlidersHorizontal, RotateCcw } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Bell,
+  Paintbrush,
+  Shield,
+  SlidersHorizontal,
+  RotateCcw,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { PageLayout } from "@/components/dashboard/PageLayout";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useUiPreferences } from "@/components/ui-preferences-provider";
-import type { AccentPreference, DensityPreference, ThemePreference } from "@/lib/ui-preferences";
+import type {
+  AccentPreference,
+  DensityPreference,
+  ThemePreference,
+} from "@/lib/ui-preferences";
 
 export default function SettingsPage() {
-  const { preferences, updatePreferences, resetPreferences } = useUiPreferences();
+  const { preferences, updatePreferences, resetPreferences } =
+    useUiPreferences();
 
   return (
     <PageLayout>
@@ -31,14 +48,20 @@ export default function SettingsPage() {
             <CardTitle className="flex items-center gap-2 text-xl">
               <Paintbrush className="h-5 w-5" /> UI Customization
             </CardTitle>
-            <CardDescription>Personalize dashboard theme, density, and accent color.</CardDescription>
+            <CardDescription>
+              Personalize dashboard theme, density, and accent color.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <label className="mb-1 block text-sm text-gray-600">Theme</label>
               <Select
                 value={preferences.theme}
-                onChange={(e) => updatePreferences({ theme: e.target.value as ThemePreference })}
+                onChange={(e) =>
+                  updatePreferences({
+                    theme: e.target.value as ThemePreference,
+                  })
+                }
               >
                 <option value="system">System</option>
                 <option value="light">Light</option>
@@ -47,10 +70,16 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm text-gray-600">Display Density</label>
+              <label className="mb-1 block text-sm text-gray-600">
+                Display Density
+              </label>
               <Select
                 value={preferences.density}
-                onChange={(e) => updatePreferences({ density: e.target.value as DensityPreference })}
+                onChange={(e) =>
+                  updatePreferences({
+                    density: e.target.value as DensityPreference,
+                  })
+                }
               >
                 <option value="comfortable">Comfortable</option>
                 <option value="compact">Compact</option>
@@ -58,12 +87,22 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm text-gray-600">Accent Color</label>
+              <label className="mb-2 block text-sm text-gray-600">
+                Accent Color
+              </label>
               <div className="grid grid-cols-4 gap-2">
                 {(
                   [
-                    { value: "emerald", className: "bg-emerald-500", label: "Emerald" },
-                    { value: "violet", className: "bg-violet-500", label: "Violet" },
+                    {
+                      value: "emerald",
+                      className: "bg-emerald-500",
+                      label: "Emerald",
+                    },
+                    {
+                      value: "violet",
+                      className: "bg-violet-500",
+                      label: "Violet",
+                    },
                     { value: "sky", className: "bg-sky-500", label: "Sky" },
                     { value: "rose", className: "bg-rose-500", label: "Rose" },
                   ] as const
@@ -72,9 +111,15 @@ export default function SettingsPage() {
                     key={accent.value}
                     type="button"
                     title={accent.label}
-                    onClick={() => updatePreferences({ accent: accent.value as AccentPreference })}
+                    onClick={() =>
+                      updatePreferences({
+                        accent: accent.value as AccentPreference,
+                      })
+                    }
                     className={`h-9 rounded-md border-2 ${accent.className} ${
-                      preferences.accent === accent.value ? "border-gray-900" : "border-transparent"
+                      preferences.accent === accent.value
+                        ? "border-gray-900"
+                        : "border-transparent"
                     }`}
                   />
                 ))}
@@ -88,7 +133,9 @@ export default function SettingsPage() {
             <CardTitle className="flex items-center gap-2 text-xl">
               <Bell className="h-5 w-5" /> Alerting
             </CardTitle>
-            <CardDescription>Notification channels and escalation policy.</CardDescription>
+            <CardDescription>
+              Notification channels and escalation policy.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <label className="flex items-center justify-between rounded-md border bg-white p-3 text-sm">
@@ -111,19 +158,27 @@ export default function SettingsPage() {
             <CardTitle className="flex items-center gap-2 text-xl">
               <SlidersHorizontal className="h-5 w-5" /> Default Thresholds
             </CardTitle>
-            <CardDescription>Fallback limits for zones without custom rules.</CardDescription>
+            <CardDescription>
+              Fallback limits for zones without custom rules.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
             <div>
-              <label className="mb-1 block text-sm text-gray-600">Temperature Warning (°C)</label>
+              <label className="mb-1 block text-sm text-gray-600">
+                Temperature Warning (°C)
+              </label>
               <Input defaultValue={28} type="number" />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-600">Humidity Warning (%)</label>
+              <label className="mb-1 block text-sm text-gray-600">
+                Humidity Warning (%)
+              </label>
               <Input defaultValue={65} type="number" />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-600">CO2 Warning (ppm)</label>
+              <label className="mb-1 block text-sm text-gray-600">
+                CO2 Warning (ppm)
+              </label>
               <Input defaultValue={1200} type="number" />
             </div>
           </CardContent>
@@ -134,7 +189,9 @@ export default function SettingsPage() {
             <CardTitle className="flex items-center gap-2 text-xl">
               <Shield className="h-5 w-5" /> Safety Controls
             </CardTitle>
-            <CardDescription>Global protection settings for emergency handling.</CardDescription>
+            <CardDescription>
+              Global protection settings for emergency handling.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
             <label className="flex items-center justify-between rounded-md border bg-white p-3 text-sm">

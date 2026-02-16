@@ -6,11 +6,20 @@ import { mockZones } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Clock3, Maximize2, Thermometer, Droplets, Wind } from "lucide-react";
+import {
+  ArrowLeft,
+  Clock3,
+  Maximize2,
+  Thermometer,
+  Droplets,
+  Wind,
+} from "lucide-react";
 
 function statusClass(status: string) {
-  if (status === "optimal") return "bg-green-100 text-green-700 border-green-200";
-  if (status === "warning") return "bg-amber-100 text-amber-700 border-amber-200";
+  if (status === "optimal")
+    return "bg-green-100 text-green-700 border-green-200";
+  if (status === "warning")
+    return "bg-amber-100 text-amber-700 border-amber-200";
   if (status === "critical") return "bg-red-100 text-red-700 border-red-200";
   return "bg-gray-100 text-gray-700 border-gray-200";
 }
@@ -26,9 +35,11 @@ export default function KioskPage() {
   const totals = useMemo(() => {
     const zoneCount = mockZones.length;
     const avgTemp =
-      mockZones.reduce((acc, z) => acc + z.metrics.temp.value, 0) / (zoneCount || 1);
+      mockZones.reduce((acc, z) => acc + z.metrics.temp.value, 0) /
+      (zoneCount || 1);
     const avgHumidity =
-      mockZones.reduce((acc, z) => acc + z.metrics.humidity.value, 0) / (zoneCount || 1);
+      mockZones.reduce((acc, z) => acc + z.metrics.humidity.value, 0) /
+      (zoneCount || 1);
     const totalAlerts = mockZones.reduce((acc, z) => acc + z.alerts, 0);
 
     return {
@@ -43,12 +54,18 @@ export default function KioskPage() {
     <div className="min-h-screen bg-black text-white p-6 md:p-8">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" className="text-white hover:text-white hover:bg-white/10">
+          <Button
+            asChild
+            variant="ghost"
+            className="text-white hover:text-white hover:bg-white/10"
+          >
             <Link href="/dashboard">
               <ArrowLeft className="h-5 w-5 mr-2" /> Exit Kiosk
             </Link>
           </Button>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Greenhouse Kiosk</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+            Greenhouse Kiosk
+          </h1>
         </div>
 
         <div className="flex items-center gap-3 text-sm">
@@ -65,27 +82,41 @@ export default function KioskPage() {
       <section className="mb-6 grid gap-4 md:grid-cols-4">
         <Card className="border-white/20 bg-white/5 text-white">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-white/70">Active Zones</CardTitle>
+            <CardTitle className="text-sm text-white/70">
+              Active Zones
+            </CardTitle>
           </CardHeader>
-          <CardContent className="text-3xl font-bold">{totals.zoneCount}</CardContent>
+          <CardContent className="text-3xl font-bold">
+            {totals.zoneCount}
+          </CardContent>
         </Card>
         <Card className="border-white/20 bg-white/5 text-white">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-white/70">Avg Temp</CardTitle>
           </CardHeader>
-          <CardContent className="text-3xl font-bold">{totals.avgTemp}°C</CardContent>
+          <CardContent className="text-3xl font-bold">
+            {totals.avgTemp}°C
+          </CardContent>
         </Card>
         <Card className="border-white/20 bg-white/5 text-white">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-white/70">Avg Humidity</CardTitle>
+            <CardTitle className="text-sm text-white/70">
+              Avg Humidity
+            </CardTitle>
           </CardHeader>
-          <CardContent className="text-3xl font-bold">{totals.avgHumidity}%</CardContent>
+          <CardContent className="text-3xl font-bold">
+            {totals.avgHumidity}%
+          </CardContent>
         </Card>
         <Card className="border-white/20 bg-white/5 text-white">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-white/70">Active Alerts</CardTitle>
+            <CardTitle className="text-sm text-white/70">
+              Active Alerts
+            </CardTitle>
           </CardHeader>
-          <CardContent className="text-3xl font-bold">{totals.totalAlerts}</CardContent>
+          <CardContent className="text-3xl font-bold">
+            {totals.totalAlerts}
+          </CardContent>
         </Card>
       </section>
 

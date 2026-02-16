@@ -157,3 +157,62 @@
 :root[data-density="compact"] textarea {
   min-height: 2rem;
 }
+
+/* Dashboard dark-mode normalization */
+.dark .dashboard-theme {
+  color: oklch(0.95 0 0);
+}
+
+.dark .dashboard-theme .bg-gray-50,
+.dark .dashboard-theme .bg-gray-50\/50 {
+  background-color: oklch(0.17 0.006 286.03);
+}
+
+.dark .dashboard-theme .bg-white,
+.dark .dashboard-theme .bg-white\/50,
+.dark .dashboard-theme .bg-white\/90 {
+  background-color: oklch(0.21 0.006 285.89);
+}
+
+.dark .dashboard-theme .text-gray-900 {
+  color: oklch(0.96 0 0);
+}
+
+.dark .dashboard-theme .text-gray-700,
+.dark .dashboard-theme .text-gray-600,
+.dark .dashboard-theme .text-gray-500,
+.dark .dashboard-theme .text-gray-400 {
+  color: oklch(0.79 0.012 286.07);
+}
+
+.dark .dashboard-theme .border-gray-200,
+.dark .dashboard-theme .border-gray-200\/70,
+.dark .dashboard-theme .border-gray-200\/80,
+.dark .dashboard-theme .border-gray-300,
+.dark .dashboard-theme .ring-gray-200 {
+  border-color: oklch(0.31 0.008 286.03);
+  --tw-ring-color: oklch(0.31 0.008 286.03);
+}
+
+.dark .dashboard-theme .hover\:bg-gray-50:hover,
+.dark .dashboard-theme .hover\:bg-gray-100:hover,
+.dark .dashboard-theme .hover\:bg-white:hover {
+  background-color: oklch(0.25 0.007 286.03);
+}
+
+.dark .dashboard-theme input,
+.dark .dashboard-theme select,
+.dark .dashboard-theme textarea {
+  background-color: oklch(0.20 0.006 285.89);
+  color: oklch(0.95 0 0);
+  border-color: oklch(0.31 0.008 286.03);
+}
+
+.dark .dashboard-theme input::placeholder,
+.dark .dashboard-theme textarea::placeholder {
+  color: oklch(0.69 0.012 286.07);
+}
+
+.dark .dashboard-theme thead.bg-gray-50 {
+  background-color: oklch(0.25 0.007 286.03);
+}

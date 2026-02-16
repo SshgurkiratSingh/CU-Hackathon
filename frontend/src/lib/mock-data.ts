@@ -8,6 +8,9 @@ import {
   ActionLog,
   MemoryEntry,
   MarketplacePack,
+  AlertHistoryItem,
+  RuleHistoryItem,
+  DeviceHistoryItem,
 } from "@/types";
 
 export type MockDeviceStatus = "normal" | "warning" | "critical" | "offline";
@@ -199,6 +202,10 @@ export const mockActionLog: ActionLog[] = [
     source: "rule-002",
     status: "success",
     time: "1m ago",
+    timestamp: new Date(Date.now() - 1000 * 60 * 1).toISOString(),
+    actor: "automation-engine",
+    durationMs: 1400,
+    targetDeviceId: "dev-004",
   },
   {
     id: "act-002",
@@ -207,6 +214,9 @@ export const mockActionLog: ActionLog[] = [
     source: "manual",
     status: "success",
     time: "10m ago",
+    timestamp: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
+    actor: "operator@growhub",
+    durationMs: 890,
   },
   {
     id: "act-003",
@@ -215,6 +225,132 @@ export const mockActionLog: ActionLog[] = [
     source: "rule-003",
     status: "failed",
     time: "24m ago",
+    timestamp: new Date(Date.now() - 1000 * 60 * 24).toISOString(),
+    actor: "automation-engine",
+    durationMs: 4200,
+    targetDeviceId: "dev-002",
+  },
+  {
+    id: "act-004",
+    zoneId: "zone-003",
+    action: "Reduce light intensity to 80%",
+    source: "manual",
+    status: "success",
+    time: "42m ago",
+    timestamp: new Date(Date.now() - 1000 * 60 * 42).toISOString(),
+    actor: "shift-supervisor",
+    durationMs: 760,
+  },
+  {
+    id: "act-005",
+    zoneId: "zone-004",
+    action: "Emergency ventilation burst",
+    source: "rule-002",
+    status: "success",
+    time: "1h ago",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+    actor: "automation-engine",
+    durationMs: 2300,
+  },
+  {
+    id: "act-006",
+    zoneId: "zone-002",
+    action: "Pause irrigation valve",
+    source: "manual",
+    status: "failed",
+    time: "2h ago",
+    timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+    actor: "operator@growhub",
+    durationMs: 5100,
+    targetDeviceId: "dev-003",
+  },
+];
+
+// --- Mock History Streams ---
+export const mockAlertHistory: AlertHistoryItem[] = [
+  {
+    id: "ah-001",
+    zoneId: "zone-004",
+    alertId: "alert-001",
+    action: "created",
+    actor: "system",
+    timestamp: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
+    note: "Humidity crossed threshold 60%",
+  },
+  {
+    id: "ah-002",
+    zoneId: "zone-004",
+    alertId: "alert-001",
+    action: "acknowledged",
+    actor: "operator@growhub",
+    timestamp: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+  },
+  {
+    id: "ah-003",
+    zoneId: "zone-002",
+    alertId: "alert-002",
+    action: "created",
+    actor: "system",
+    timestamp: new Date(Date.now() - 1000 * 60 * 55).toISOString(),
+  },
+];
+
+export const mockRuleHistory: RuleHistoryItem[] = [
+  {
+    id: "rh-001",
+    zoneId: "zone-002",
+    ruleId: "rule-001",
+    action: "triggered",
+    actor: "automation-engine",
+    timestamp: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
+    details: "Temp 28.3°C > 28°C",
+  },
+  {
+    id: "rh-002",
+    zoneId: "zone-001",
+    ruleId: "rule-003",
+    action: "paused",
+    actor: "operator@growhub",
+    timestamp: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
+  },
+  {
+    id: "rh-003",
+    zoneId: "zone-004",
+    ruleId: "rule-002",
+    action: "updated",
+    actor: "agronomist",
+    timestamp: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
+    details: "Adjusted humidity trigger from 62% to 60%",
+  },
+];
+
+export const mockDeviceHistory: DeviceHistoryItem[] = [
+  {
+    id: "dh-001",
+    zoneId: "zone-004",
+    deviceId: "dev-004",
+    action: "error",
+    actor: "system",
+    timestamp: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
+    details: "Compressor pressure fault",
+  },
+  {
+    id: "dh-002",
+    zoneId: "zone-003",
+    deviceId: "dev-010",
+    action: "online",
+    actor: "system",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+    details: "Recovered after network reconnect",
+  },
+  {
+    id: "dh-003",
+    zoneId: "zone-002",
+    deviceId: "dev-003",
+    action: "maintenance",
+    actor: "field-tech",
+    timestamp: new Date(Date.now() - 1000 * 60 * 140).toISOString(),
+    details: "Sensor calibration started",
   },
 ];
 

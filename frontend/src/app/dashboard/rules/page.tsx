@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRules, useZones } from "@/hooks/use-dashboard-data";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plus, Workflow } from "lucide-react";
@@ -27,7 +33,9 @@ export default function RulesPage() {
   }, []);
 
   const filteredRules = useMemo(() => {
-    return rules.filter((rule) => zoneFilter === "all" || rule.zoneId === zoneFilter);
+    return rules.filter(
+      (rule) => zoneFilter === "all" || rule.zoneId === zoneFilter,
+    );
   }, [rules, zoneFilter]);
 
   const activeCount = rules.filter((r) => r.status === "active").length;
@@ -47,15 +55,25 @@ export default function RulesPage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard title="Total Rules" value={rules.length} />
-        <StatCard title="Active" value={activeCount} accentClassName="border-green-200/70 bg-green-50/40" />
-        <StatCard title="Paused" value={pausedCount} accentClassName="border-amber-200/70 bg-amber-50/40" />
+        <StatCard
+          title="Active"
+          value={activeCount}
+          accentClassName="border-green-200/70 bg-green-50/40"
+        />
+        <StatCard
+          title="Paused"
+          value={pausedCount}
+          accentClassName="border-amber-200/70 bg-amber-50/40"
+        />
       </div>
 
       <Card>
         <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
             <CardTitle>Automation Rules</CardTitle>
-            <CardDescription>IF condition is true, THEN run an action.</CardDescription>
+            <CardDescription>
+              IF condition is true, THEN run an action.
+            </CardDescription>
           </div>
           <Select
             value={zoneFilter}
@@ -79,8 +97,12 @@ export default function RulesPage() {
                 <div key={rule.id} className="rounded-lg border bg-white p-4">
                   <div className="mb-2 flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-base font-semibold text-gray-900">{rule.name}</p>
-                      <p className="text-xs text-gray-500">{zone?.name ?? "Unknown zone"}</p>
+                      <p className="text-base font-semibold text-gray-900">
+                        {rule.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {zone?.name ?? "Unknown zone"}
+                      </p>
                     </div>
                     <Badge
                       variant="outline"
@@ -96,10 +118,12 @@ export default function RulesPage() {
 
                   <div className="grid gap-2 text-sm">
                     <p>
-                      <span className="font-medium text-gray-600">IF:</span> {rule.when}
+                      <span className="font-medium text-gray-600">IF:</span>{" "}
+                      {rule.when}
                     </p>
                     <p>
-                      <span className="font-medium text-gray-600">THEN:</span> {rule.then}
+                      <span className="font-medium text-gray-600">THEN:</span>{" "}
+                      {rule.then}
                     </p>
                   </div>
 
@@ -109,7 +133,9 @@ export default function RulesPage() {
                     </Button>
                     <Button
                       size="sm"
-                      variant={rule.status === "active" ? "secondary" : "default"}
+                      variant={
+                        rule.status === "active" ? "secondary" : "default"
+                      }
                     >
                       {rule.status === "active" ? "Pause" : "Activate"}
                     </Button>

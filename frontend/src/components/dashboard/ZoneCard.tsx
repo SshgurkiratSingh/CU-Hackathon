@@ -49,7 +49,10 @@ export function ZoneCard({ zone }: ZoneCardProps) {
           <Sprout className="w-5 h-5 text-green-600 dark:text-green-400" />
           {zone.name}
         </CardTitle>
-        <Badge className={`inline-flex items-center gap-1.5 ${statusColor}`} variant="outline">
+        <Badge
+          className={`inline-flex items-center gap-1.5 ${statusColor}`}
+          variant="outline"
+        >
           <span className={`h-1.5 w-1.5 rounded-full ${statusDot}`}></span>
           {zone.status.toUpperCase()}
         </Badge>

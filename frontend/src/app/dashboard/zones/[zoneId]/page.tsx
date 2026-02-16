@@ -106,7 +106,9 @@ export default function ZoneDetailPage() {
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline">
-            <Link href={`/dashboard/rules?zone=${zone.id}`}>Schedule Rules</Link>
+            <Link href={`/dashboard/rules?zone=${zone.id}`}>
+              Schedule Rules
+            </Link>
           </Button>
           <Button variant="destructive">Emergency Stop</Button>
         </div>
@@ -258,7 +260,9 @@ export default function ZoneDetailPage() {
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-gray-400">Preparing chart...</div>
+                  <div className="flex h-full items-center justify-center text-sm text-gray-400">
+                    Preparing chart...
+                  </div>
                 )}
               </div>
             </CardContent>

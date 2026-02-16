@@ -20,7 +20,9 @@ const statusStyles: Record<DeviceStatus, string> = {
 
 export default function DeviceManagementPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50/50 p-6 md:p-8" />}>
+    <Suspense
+      fallback={<div className="min-h-screen bg-gray-50/50 p-6 md:p-8" />}
+    >
       <DeviceManagementPageContent />
     </Suspense>
   );
@@ -44,7 +46,8 @@ function DeviceManagementPageContent() {
   const filteredDevices = useMemo(() => {
     return devices.filter((device) => {
       const matchZone = zoneFilter === "all" || device.zoneId === zoneFilter;
-      const matchStatus = statusFilter === "all" || device.status === statusFilter;
+      const matchStatus =
+        statusFilter === "all" || device.status === statusFilter;
       const matchQuery =
         query.trim().length === 0 ||
         device.name.toLowerCase().includes(query.toLowerCase()) ||
@@ -57,7 +60,9 @@ function DeviceManagementPageContent() {
 
   const onlineCount = devices.filter((d) => d.status === "online").length;
   const errorCount = devices.filter((d) => d.status === "error").length;
-  const maintenanceCount = devices.filter((d) => d.status === "maintenance").length;
+  const maintenanceCount = devices.filter(
+    (d) => d.status === "maintenance",
+  ).length;
   const offlineCount = devices.filter((d) => d.status === "offline").length;
 
   return (
@@ -99,7 +104,9 @@ function DeviceManagementPageContent() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="rounded-xl border-emerald-200/70 bg-gradient-to-br from-emerald-50/70 to-white shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Online</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">
+              Online
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex items-center justify-between">
             <p className="text-2xl font-bold">{onlineCount}</p>
@@ -108,7 +115,9 @@ function DeviceManagementPageContent() {
         </Card>
         <Card className="rounded-xl border-amber-200/70 bg-gradient-to-br from-amber-50/70 to-white shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Maintenance</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">
+              Maintenance
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex items-center justify-between">
             <p className="text-2xl font-bold">{maintenanceCount}</p>
@@ -117,7 +126,9 @@ function DeviceManagementPageContent() {
         </Card>
         <Card className="rounded-xl border-red-200/70 bg-gradient-to-br from-red-50/70 to-white shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Error</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">
+              Error
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex items-center justify-between">
             <p className="text-2xl font-bold">{errorCount}</p>
@@ -155,7 +166,9 @@ function DeviceManagementPageContent() {
 
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as DeviceStatus | "all")}
+              onChange={(e) =>
+                setStatusFilter(e.target.value as DeviceStatus | "all")
+              }
               className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm"
             >
               <option value="all">All statuses</option>
@@ -188,16 +201,29 @@ function DeviceManagementPageContent() {
                     return (
                       <tr key={device.id} className="hover:bg-gray-50">
                         <td className="p-3">
-                          <p className="font-medium text-gray-900">{device.name}</p>
-                          <p className="text-xs text-gray-500 font-mono">{device.id}</p>
+                          <p className="font-medium text-gray-900">
+                            {device.name}
+                          </p>
+                          <p className="text-xs text-gray-500 font-mono">
+                            {device.id}
+                          </p>
                         </td>
                         <td className="p-3">
-                          <p className="text-gray-700 capitalize">{device.type}</p>
-                          <p className="text-xs text-gray-500">{device.subType}</p>
+                          <p className="text-gray-700 capitalize">
+                            {device.type}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {device.subType}
+                          </p>
                         </td>
-                        <td className="p-3 text-gray-700">{zone?.name ?? "Unknown"}</td>
+                        <td className="p-3 text-gray-700">
+                          {zone?.name ?? "Unknown"}
+                        </td>
                         <td className="p-3">
-                          <Badge variant="outline" className={statusStyles[device.status]}>
+                          <Badge
+                            variant="outline"
+                            className={statusStyles[device.status]}
+                          >
                             {device.status.toUpperCase()}
                           </Badge>
                         </td>

@@ -24,11 +24,17 @@ export function PageHeader({
           </Link>
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">{title}</h1>
-          {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+            {title}
+          </h1>
+          {description ? (
+            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          ) : null}
         </div>
       </div>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className="flex items-center gap-2">{actions}</div>
+      ) : null}
     </header>
   );
 }

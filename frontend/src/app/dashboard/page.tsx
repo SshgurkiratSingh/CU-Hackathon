@@ -189,7 +189,9 @@ export default function DashboardPage() {
       {/* Module Shortcuts */}
       <div className="mb-8">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Quick Modules</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
+            Quick Modules
+          </h2>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {shortcutCards.map((shortcut) => {
@@ -201,12 +203,18 @@ export default function DashboardPage() {
                 className="group rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
               >
                 <div className="mb-3 flex items-center justify-between">
-                  <span className={`inline-flex h-8 w-8 items-center justify-center rounded-md border ${shortcut.badgeClass}`}>
+                  <span
+                    className={`inline-flex h-8 w-8 items-center justify-center rounded-md border ${shortcut.badgeClass}`}
+                  >
                     <Icon className={`h-4 w-4 ${shortcut.iconClass}`} />
                   </span>
                 </div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{shortcut.label}</p>
-                <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{shortcut.description}</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+                  {shortcut.label}
+                </p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                  {shortcut.description}
+                </p>
               </Link>
             );
           })}
@@ -215,7 +223,9 @@ export default function DashboardPage() {
 
       {/* Zone Grid */}
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Zones</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
+          Zones
+        </h2>
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {zones.map((zone) => (
