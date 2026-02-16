@@ -1,11 +1,13 @@
 export type ThemePreference = "system" | "light" | "dark";
 export type DensityPreference = "comfortable" | "compact";
 export type AccentPreference = "emerald" | "violet" | "sky" | "rose";
+export type BackgroundPreference = "plain" | "back1" | "back2";
 
 export type UiPreferences = {
   theme: ThemePreference;
   density: DensityPreference;
   accent: AccentPreference;
+  background: BackgroundPreference;
 };
 
 export const UI_PREFERENCES_STORAGE_KEY = "ui-preferences";
@@ -40,6 +42,7 @@ export const defaultUiPreferences: UiPreferences = {
   theme: "system",
   density: "comfortable",
   accent: "emerald",
+  background: "plain",
 };
 
 export function readUiPreferences(): UiPreferences {
@@ -61,6 +64,10 @@ export function readUiPreferences(): UiPreferences {
         parsed.accent === "violet" || parsed.accent === "sky" || parsed.accent === "rose"
           ? parsed.accent
           : "emerald",
+      background:
+        parsed.background === "back1" || parsed.background === "back2"
+          ? parsed.background
+          : "plain",
     };
   } catch {
     return defaultUiPreferences;
@@ -83,6 +90,7 @@ export function applyUiPreferences(preferences: UiPreferences): void {
   root.classList.toggle("dark", isDark);
   root.setAttribute("data-density", preferences.density);
   root.setAttribute("data-accent", preferences.accent);
+  root.setAttribute("data-background", preferences.background);
 
   const accent = ACCENT_STYLES[preferences.accent];
   root.style.setProperty("--primary", accent.primary);

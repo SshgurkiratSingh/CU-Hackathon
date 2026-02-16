@@ -216,3 +216,40 @@
 .dark .dashboard-theme thead.bg-gray-50 {
   background-color: oklch(0.25 0.007 286.03);
 }
+
+/* Optional dashboard wallpapers */
+:root[data-background="plain"] .dashboard-theme {
+  background-image: none;
+}
+
+:root[data-background="back1"] .dashboard-theme {
+  background-image:
+    linear-gradient(to bottom, rgb(248 250 252 / 0.86), rgb(249 250 251 / 0.9)),
+    url("/back1.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+:root[data-background="back2"] .dashboard-theme {
+  background-image:
+    linear-gradient(to bottom, rgb(248 250 252 / 0.86), rgb(249 250 251 / 0.9)),
+    url("/back2.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.dark[data-background="back1"] .dashboard-theme {
+  background-image:
+    linear-gradient(to bottom, rgb(2 6 23 / 0.82), rgb(15 23 42 / 0.86)),
+    url("/back1.jpg");
+}
+
+.dark[data-background="back2"] .dashboard-theme {
+  background-image:
+    linear-gradient(to bottom, rgb(2 6 23 / 0.82), rgb(15 23 42 / 0.86)),
+    url("/back2.jpg");
+}

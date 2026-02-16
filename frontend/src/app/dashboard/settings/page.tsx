@@ -22,6 +22,7 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useUiPreferences } from "@/components/ui-preferences-provider";
 import type {
   AccentPreference,
+  BackgroundPreference,
   DensityPreference,
   ThemePreference,
 } from "@/lib/ui-preferences";
@@ -124,6 +125,24 @@ export default function SettingsPage() {
                   />
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm text-gray-600">
+                Background Style
+              </label>
+              <Select
+                value={preferences.background}
+                onChange={(e) =>
+                  updatePreferences({
+                    background: e.target.value as BackgroundPreference,
+                  })
+                }
+              >
+                <option value="plain">Plain</option>
+                <option value="back1">Back 1</option>
+                <option value="back2">Back 2</option>
+              </Select>
             </div>
           </CardContent>
         </Card>
