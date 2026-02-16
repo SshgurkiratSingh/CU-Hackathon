@@ -26,6 +26,7 @@ curl -X POST http://localhost:3000/api/auth/register \
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -50,6 +51,7 @@ curl -X POST http://localhost:3000/api/auth/login \
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -67,6 +69,7 @@ Response:
 ### Using Token
 
 Add to request headers:
+
 ```
 Authorization: Bearer <token>
 ```
@@ -234,15 +237,15 @@ curl -X POST http://localhost:3000/api/devices \
 
 ## Response Codes
 
-| Code | Meaning |
-|------|---------|
-| 200 | Success |
-| 201 | Created |
-| 400 | Bad Request |
-| 401 | Unauthorized |
-| 403 | Forbidden |
-| 404 | Not Found |
-| 500 | Server Error |
+| Code | Meaning      |
+| ---- | ------------ |
+| 200  | Success      |
+| 201  | Created      |
+| 400  | Bad Request  |
+| 401  | Unauthorized |
+| 403  | Forbidden    |
+| 404  | Not Found    |
+| 500  | Server Error |
 
 ## Error Response Format
 

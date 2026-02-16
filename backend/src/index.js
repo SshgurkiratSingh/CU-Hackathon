@@ -156,7 +156,11 @@ const startServer = async () => {
       authorize(["admin"]),
       settingsRoutes,
     );
-    app.use("/api/marketplace", authMiddleware(sessionManager), marketplaceRoutes);
+    app.use(
+      "/api/marketplace",
+      authMiddleware(sessionManager),
+      marketplaceRoutes,
+    );
     app.use("/api/memory", authMiddleware(sessionManager), memoryRoutes);
     app.use("/api/devices", authMiddleware(sessionManager), devicesRoutes);
 

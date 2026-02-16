@@ -19,7 +19,10 @@ const authMiddleware = (sessionManager) => {
       await sessionManager.touchSession(session.sessionId);
       next();
     } catch (error) {
-      logger.warn({ errorMsg: error?.message, errorStack: error?.stack }, "Auth middleware failed");
+      logger.warn(
+        { errorMsg: error?.message, errorStack: error?.stack },
+        "Auth middleware failed",
+      );
       console.error("[AUTH ERROR]", error?.message);
       res.status(401).json({ error: "Invalid or expired token" });
     }

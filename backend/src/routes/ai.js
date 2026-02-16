@@ -29,7 +29,9 @@ const setGeminiService = (service) => {
 router.post("/analyze", async (req, res) => {
   try {
     if (!geminiService) {
-      return res.status(503).json(errorResponse("AI service not available", 503));
+      return res
+        .status(503)
+        .json(errorResponse("AI service not available", 503));
     }
 
     const { condition, context } = req.body;
@@ -49,8 +51,13 @@ router.post("/analyze", async (req, res) => {
       }),
     );
   } catch (error) {
-    logger.error({ error: error.message, stack: error.stack }, "Gemini analyze failed");
-    return res.status(500).json(errorResponse(error.message || "Analysis failed", 500));
+    logger.error(
+      { error: error.message, stack: error.stack },
+      "Gemini analyze failed",
+    );
+    return res
+      .status(500)
+      .json(errorResponse(error.message || "Analysis failed", 500));
   }
 });
 
@@ -61,7 +68,9 @@ router.post("/analyze", async (req, res) => {
 router.post("/decide", async (req, res) => {
   try {
     if (!geminiService) {
-      return res.status(503).json(errorResponse("AI service not available", 503));
+      return res
+        .status(503)
+        .json(errorResponse("AI service not available", 503));
     }
 
     const { condition, options, farm_id } = req.body;
@@ -74,7 +83,11 @@ router.post("/decide", async (req, res) => {
 
     logger.info({ condition, options, farm_id }, "Making decision with Gemini");
 
-    const decision = await geminiService.generateDecision(condition, options, farm_id);
+    const decision = await geminiService.generateDecision(
+      condition,
+      options,
+      farm_id,
+    );
 
     return res.status(200).json(
       successResponse("Decision generated", {
@@ -84,8 +97,13 @@ router.post("/decide", async (req, res) => {
       }),
     );
   } catch (error) {
-    logger.error({ error: error.message, stack: error.stack }, "Gemini decide failed");
-    return res.status(500).json(errorResponse(error.message || "Decision failed", 500));
+    logger.error(
+      { error: error.message, stack: error.stack },
+      "Gemini decide failed",
+    );
+    return res
+      .status(500)
+      .json(errorResponse(error.message || "Decision failed", 500));
   }
 });
 
@@ -96,13 +114,17 @@ router.post("/decide", async (req, res) => {
 router.post("/summarize", async (req, res) => {
   try {
     if (!geminiService) {
-      return res.status(503).json(errorResponse("AI service not available", 503));
+      return res
+        .status(503)
+        .json(errorResponse("AI service not available", 503));
     }
 
     const { telemetry } = req.body;
 
     if (!telemetry) {
-      return res.status(400).json(errorResponse("Telemetry data is required", 400));
+      return res
+        .status(400)
+        .json(errorResponse("Telemetry data is required", 400));
     }
 
     logger.info({ telemetry }, "Summarizing telemetry with Gemini");
@@ -116,7 +138,10 @@ router.post("/summarize", async (req, res) => {
       }),
     );
   } catch (error) {
-    logger.error({ error: error.message, stack: error.stack }, "Gemini summarize failed");
+    logger.error(
+      { error: error.message, stack: error.stack },
+      "Gemini summarize failed",
+    );
     return res
       .status(500)
       .json(errorResponse(error.message || "Summarization failed", 500));

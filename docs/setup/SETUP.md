@@ -64,6 +64,7 @@ npm install
 ### 4. Setup MQTT (Optional)
 
 For local MQTT broker:
+
 ```bash
 # Docker
 docker run -d --name mosquitto -p 1883:1883 eclipse-mosquitto
@@ -83,11 +84,13 @@ Server will start on `http://localhost:3000`
 ## Verify Installation
 
 ### Health Check
+
 ```bash
 curl http://localhost:3000/health
 ```
 
 Expected response:
+
 ```json
 {
   "status": "healthy",
@@ -97,6 +100,7 @@ Expected response:
 ```
 
 ### Test Authentication
+
 ```bash
 # Register user
 curl -X POST http://localhost:3000/api/auth/register \
@@ -119,21 +123,25 @@ curl -X POST http://localhost:3000/api/auth/login \
 ## Troubleshooting
 
 ### MongoDB Connection Failed
+
 - Verify connection string in `.env`
 - Check MongoDB Atlas network access (IP whitelist)
 - Confirm credentials are correct
 
 ### MQTT Connection Failed
+
 - Ensure MQTT broker is running
 - Check broker URL in `.env`
 - Verify port 1883 is accessible
 
 ### Gemini API Errors
+
 - Confirm `GEMINI_API_KEY` is set correctly
 - Check API key has Generative AI permissions
 - Verify model name is supported
 
 ### Port 3000 Already in Use
+
 ```bash
 # Find process using port 3000
 lsof -i :3000

@@ -10,14 +10,14 @@ class GeminiService {
     // Can override with GEMINI_MODEL env var
     // Available models: gemini-3-pro, gemini-3-flash, gemini-2.5-flash, gemini-2.5-flash-lite, gemini-2.5-pro
     this.modelName = process.env.GEMINI_MODEL || "gemini-3-flash";
-    
+
     if (!this.apiKey) {
       logger.warn("GEMINI_API_KEY not set - AI features will be limited");
     }
 
     this.client = new GoogleGenerativeAI(this.apiKey);
     this.model = this.client.getGenerativeModel({ model: this.modelName });
-    
+
     logger.info(
       { model: this.modelName },
       "GeminiService initialized with model",
@@ -40,10 +40,11 @@ Provide:
 Be concise and specific.`;
 
       const result = await this.model.generateContent(prompt);
-      const response = result.response.text();
+      const response = await result.response;
+      const text = response.text();
 
       logger.info({ description }, "Gemini analysis completed");
-      return { analysis: response, timestamp: new Date().toISOString() };
+      return { analysis: text, timestamp: new Date().toISOString() };
     } catch (error) {
       logger.error({ error }, "Gemini analysis failed");
       throw error;
@@ -66,7 +67,8 @@ Provide JSON response with:
 Respond only with valid JSON.`;
 
       const result = await this.model.generateContent(prompt);
-      const responseText = result.response.text();
+      const output = await result.response;
+      const responseText = output.text();
       const decision = JSON.parse(responseText);
 
       logger.info(

@@ -85,12 +85,12 @@ const router = express.Router();
 router.post("/action", async (req, res) => {
   try {
     const { field } = req.body;
-    
+
     // Validation
     if (!field) {
       return res.status(400).json({
         success: false,
-        error: "Field is required"
+        error: "Field is required",
       });
     }
 
@@ -101,13 +101,13 @@ router.post("/action", async (req, res) => {
       success: true,
       message: "Action completed",
       data: result,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     logger.error({ error: error.message }, "Endpoint failed");
     return res.status(500).json({
       success: false,
-      error: error.message || "Internal server error"
+      error: error.message || "Internal server error",
     });
   }
 });
@@ -133,7 +133,7 @@ app.use("/api/myroute", authMiddleware(sessionManager), myRoutes);
 const mySchema = new mongoose.Schema({
   fieldName: { type: String, required: true },
   fieldValue: Number,
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
 });
 
 module.exports = { MyModel: mongoose.model("MyModel", mySchema) };
@@ -147,9 +147,9 @@ All routes automatically get user info via middleware:
 
 ```javascript
 router.get("/data", authMiddleware(sessionManager), async (req, res) => {
-  const userId = req.user.userId;    // Current user ID
+  const userId = req.user.userId; // Current user ID
   const sessionId = req.user.sessionId; // Session ID
-  const userRole = req.user.role;    // User role
+  const userRole = req.user.role; // User role
 });
 ```
 
@@ -159,8 +159,8 @@ router.get("/data", authMiddleware(sessionManager), async (req, res) => {
 app.use(
   "/api/admin",
   authMiddleware(sessionManager),
-  authorize(["admin"]),  // Only admin access
-  adminRoutes
+  authorize(["admin"]), // Only admin access
+  adminRoutes,
 );
 ```
 
@@ -185,15 +185,17 @@ Follow standard response format:
 res.json({
   success: true,
   message: "Description",
-  data: { /* result */ },
-  timestamp: new Date().toISOString()
+  data: {
+    /* result */
+  },
+  timestamp: new Date().toISOString(),
 });
 
 // Error
 res.status(status).json({
   success: false,
   error: "Error description",
-  timestamp: new Date().toISOString()
+  timestamp: new Date().toISOString(),
 });
 ```
 
@@ -206,10 +208,13 @@ const mqtt = require("mqtt");
 const client = mqtt.connect(process.env.MQTT_BROKER_URL);
 
 // Publish action
-client.publish("greenhouse/actions/farm1/trigger", JSON.stringify({
-  action: "irrigation",
-  duration: 300
-}));
+client.publish(
+  "greenhouse/actions/farm1/trigger",
+  JSON.stringify({
+    action: "irrigation",
+    duration: 300,
+  }),
+);
 ```
 
 ### Subscribing to Messages

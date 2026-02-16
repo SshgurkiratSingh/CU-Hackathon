@@ -20,18 +20,28 @@ router.get("/", async (req, res, next) => {
       if (endDate) filter.timestamp.$lte = new Date(endDate);
     }
 
+    logger.info({ filter, limit }, "Fetching telemetry data");
+
     const telemetry = await Telemetry.find(filter)
       .sort({ timestamp: -1 })
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .maxTimeMS(3000) // 3 second timeout
+      .lean();
+
+    logger.info({ count: telemetry.length }, "Telemetry data fetched");
 
     res.json({
       success: true,
       data: telemetry,
       count: telemetry.length,
+      message: `Retrieved ${telemetry.length} telemetry records`,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    logger.error({ error }, "Failed to fetch telemetry");
+    logger.error(
+      { error: error.message, stack: error.stack },
+      "Failed to fetch telemetry",
+    );
     next(error);
   }
 });

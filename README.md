@@ -6,11 +6,11 @@
 
 Comprehensive documentation organized by topic:
 
-| Section | Purpose |
-|---------|---------|
-| [Project Overview](docs/project/README.md) | Project description and tech stack |
-| [Setup Guide](docs/setup/SETUP.md) | Installation and configuration |
-| [API Reference](docs/api/API.md) | Complete endpoint documentation |
+| Section                                              | Purpose                            |
+| ---------------------------------------------------- | ---------------------------------- |
+| [Project Overview](docs/project/README.md)           | Project description and tech stack |
+| [Setup Guide](docs/setup/SETUP.md)                   | Installation and configuration     |
+| [API Reference](docs/api/API.md)                     | Complete endpoint documentation    |
 | [Development Guide](docs/development/DEVELOPMENT.md) | Development and contribution guide |
 
 ## 🚀 Quick Start
@@ -71,21 +71,22 @@ CU-Hackathon/
 
 ## 🛠️ Technology Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Runtime | Node.js 22 LTS |
-| Framework | Express 4.18 |
-| Database | MongoDB 7.5 Atlas |
-| Message Queue | MQTT 5.0 |
-| AI/LLM | Google Gemini 3 Flash |
-| Authentication | JWT + bcryptjs |
-| Logging | Pino |
+| Layer          | Technology            |
+| -------------- | --------------------- |
+| Runtime        | Node.js 22 LTS        |
+| Framework      | Express 4.18          |
+| Database       | MongoDB 7.5 Atlas     |
+| Message Queue  | MQTT 5.0              |
+| AI/LLM         | Google Gemini 3 Flash |
+| Authentication | JWT + bcryptjs        |
+| Logging        | Pino                  |
 
 ## 📊 API Endpoints
 
 **Total:** 47+ endpoints across 11 route modules
 
 ### Core Endpoints
+
 - `POST /api/auth/register` - User registration
 - `POST /api/auth/login` - User login
 - `POST /api/telemetry` - Submit sensor data
@@ -110,11 +111,13 @@ See [API Reference](docs/api/API.md) for complete documentation.
 ## 🧪 Testing
 
 ### Health Check
+
 ```bash
 curl http://localhost:3000/health
 ```
 
 ### Authentication Test
+
 ```bash
 curl -X POST http://localhost:3000/api/auth/register \
   -H "Content-Type: application/json" \
@@ -128,6 +131,7 @@ curl -X POST http://localhost:3000/api/auth/register \
 ## 📝 Development
 
 ### For Developers
+
 - See [Development Guide](docs/development/DEVELOPMENT.md)
 - Add new endpoints following established patterns
 - Use provided services for business logic
@@ -135,6 +139,7 @@ curl -X POST http://localhost:3000/api/auth/register \
 - Add comprehensive logging
 
 ### For DevOps
+
 - See [Setup Guide](docs/setup/SETUP.md)
 - Production deployment steps
 - Environment configuration
@@ -152,6 +157,7 @@ curl -X POST http://localhost:3000/api/auth/register \
 ## 📞 Support
 
 For issues or questions:
+
 1. Check the [Setup Guide](docs/setup/SETUP.md)
 2. Review [API Reference](docs/api/API.md)
 3. Consult [Development Guide](docs/development/DEVELOPMENT.md)

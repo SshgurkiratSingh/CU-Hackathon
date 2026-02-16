@@ -18,15 +18,15 @@ Greenhouse OS is an intelligent IoT automation platform that leverages AI-driven
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|-----------|
-| Backend | Node.js 22 LTS + Express 4.18 |
-| Database | MongoDB 7.5 Atlas |
-| Message Queue | MQTT 5.0 (mosquitto) |
-| AI Engine | Google Gemini 3 Flash |
-| Authentication | JWT + bcryptjs |
-| ORM | Mongoose 7.5 |
-| Logging | Pino |
+| Component      | Technology                    |
+| -------------- | ----------------------------- |
+| Backend        | Node.js 22 LTS + Express 4.18 |
+| Database       | MongoDB 7.5 Atlas             |
+| Message Queue  | MQTT 5.0 (mosquitto)          |
+| AI Engine      | Google Gemini 3 Flash         |
+| Authentication | JWT + bcryptjs                |
+| ORM            | Mongoose 7.5                  |
+| Logging        | Pino                          |
 
 ## Project Structure
 
