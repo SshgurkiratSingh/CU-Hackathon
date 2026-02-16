@@ -7,7 +7,7 @@ import {
   generateInitialDevices,
   generateRandomDevice,
   updateDeviceTelemetry,
-} from "@/lib/mock-data";
+} from "../../../lib/mock-data";
 import { RefreshCw, AlertTriangle, Plus, Activity } from "lucide-react";
 
 // Dynamically import the map component with ssr: false
