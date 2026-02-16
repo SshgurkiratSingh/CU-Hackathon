@@ -1,5 +1,14 @@
 // src/lib/mock-data.ts
-import { Zone, Device, Alert, TelemetryPoint } from "@/types";
+import {
+  Zone,
+  Device,
+  Alert,
+  TelemetryPoint,
+  AutomationRule,
+  ActionLog,
+  MemoryEntry,
+  MarketplacePack,
+} from "@/types";
 
 export type MockDeviceStatus = "normal" | "warning" | "critical" | "offline";
 
@@ -121,6 +130,186 @@ export const getMockTelemetryHistory = (zoneId: string, hours: number = 24): Tel
     };
   });
 };
+
+// --- Mock Alerts ---
+export const mockAlerts: Alert[] = [
+  {
+    id: "alert-001",
+    zoneId: "zone-004",
+    severity: "critical",
+    title: "Humidity threshold breached",
+    message: "Drying vault humidity above 60% for 15 minutes.",
+    timestamp: new Date().toISOString(),
+    acknowledged: false,
+  },
+  {
+    id: "alert-002",
+    zoneId: "zone-002",
+    severity: "warning",
+    title: "Temperature rising",
+    message: "Zone temperature trending upward, approaching warning threshold.",
+    timestamp: new Date(Date.now() - 1000 * 60 * 22).toISOString(),
+    acknowledged: false,
+  },
+  {
+    id: "alert-003",
+    zoneId: "zone-001",
+    severity: "info",
+    title: "Misting cycle complete",
+    message: "Propagation misting cycle completed successfully.",
+    timestamp: new Date(Date.now() - 1000 * 60 * 50).toISOString(),
+    acknowledged: true,
+  },
+];
+
+// --- Mock Rules ---
+export const mockRules: AutomationRule[] = [
+  {
+    id: "rule-001",
+    zoneId: "zone-002",
+    name: "Heat Extraction Safety",
+    when: "Temp > 28°C for 3 min",
+    then: "Enable extraction fan (80%)",
+    status: "active",
+  },
+  {
+    id: "rule-002",
+    zoneId: "zone-004",
+    name: "Drying Vault Humidity Guard",
+    when: "Humidity > 60%",
+    then: "Start dehumidifier and send alert",
+    status: "active",
+  },
+  {
+    id: "rule-003",
+    zoneId: "zone-001",
+    name: "Propagation Misting Cycle",
+    when: "Humidity < 78%",
+    then: "Run mister for 2 minutes",
+    status: "paused",
+  },
+];
+
+// --- Mock Actions ---
+export const mockActionLog: ActionLog[] = [
+  {
+    id: "act-001",
+    zoneId: "zone-004",
+    action: "Start dehumidifier",
+    source: "rule-002",
+    status: "success",
+    time: "1m ago",
+  },
+  {
+    id: "act-002",
+    zoneId: "zone-002",
+    action: "Enable extraction fan",
+    source: "manual",
+    status: "success",
+    time: "10m ago",
+  },
+  {
+    id: "act-003",
+    zoneId: "zone-001",
+    action: "Run misting cycle",
+    source: "rule-003",
+    status: "failed",
+    time: "24m ago",
+  },
+];
+
+// --- Mock Memory ---
+export const mockMemoryEntries: MemoryEntry[] = [
+  {
+    id: "mem-001",
+    zoneId: "zone-001",
+    summary: "Humidity stable around 80-83% after misting adjustments.",
+    confidence: 0.92,
+    createdAt: "2h ago",
+  },
+  {
+    id: "mem-002",
+    zoneId: "zone-004",
+    summary: "Drying quality decreases when humidity exceeds 60% for >20 min.",
+    confidence: 0.95,
+    createdAt: "5h ago",
+  },
+  {
+    id: "mem-003",
+    zoneId: "zone-002",
+    summary: "Ventilation pulse of 5 min keeps temperature under 28°C.",
+    confidence: 0.88,
+    createdAt: "1d ago",
+  },
+];
+
+// --- Mock Marketplace ---
+export const mockMarketplacePacks: MarketplacePack[] = [
+  {
+    id: "pack-001",
+    name: "Leaf Disease Detector",
+    category: "Computer Vision",
+    installs: 318,
+    rating: 4.9,
+    description: "Analyzes canopy camera feeds to detect early signs of mildew and nutrient stress.",
+  },
+  {
+    id: "pack-002",
+    name: "Growth Stage Classifier",
+    category: "CV",
+    installs: 204,
+    rating: 4.7,
+    description: "Classifies plant growth stages from images and updates zone operation targets.",
+  },
+  {
+    id: "pack-003",
+    name: "Irrigation Decision Engine",
+    category: "Decision Model",
+    installs: 267,
+    rating: 4.8,
+    description: "Recommends irrigation actions from humidity, substrate, and evapotranspiration signals.",
+  },
+  {
+    id: "pack-004",
+    name: "Climate Setpoint Policy",
+    category: "Decision",
+    installs: 189,
+    rating: 4.6,
+    description: "Optimizes HVAC and ventilation setpoints using forecast and zone trend history.",
+  },
+  {
+    id: "pack-005",
+    name: "Camera Drift Monitor",
+    category: "Computer Vision",
+    installs: 146,
+    rating: 4.5,
+    description: "Detects blur, angle drift, and low-light degradation across greenhouse cameras.",
+  },
+  {
+    id: "pack-006",
+    name: "Harvest Window Recommender",
+    category: "Decision Policy",
+    installs: 121,
+    rating: 4.4,
+    description: "Ranks harvest windows based on stress signals, growth pace, and quality constraints.",
+  },
+  {
+    id: "pack-007",
+    name: "MQTT Device Bridge",
+    category: "Plugin",
+    installs: 233,
+    rating: 4.7,
+    description: "Bridges external MQTT telemetry streams into zone-level model inputs and alerts.",
+  },
+  {
+    id: "pack-008",
+    name: "ERP Yield Sync",
+    category: "Integration Plugin",
+    installs: 88,
+    rating: 4.3,
+    description: "Syncs batch outcomes and quality grades to enterprise systems for closed-loop decisions.",
+  },
+];
 
 // --- Device Simulator Data (for /debug/mock) ---
 const MOCK_DEVICE_TYPES: Array<MockDevice["type"]> = [

@@ -1,33 +1,88 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft, Bell, Shield, SlidersHorizontal, Save } from "lucide-react";
+import { Bell, Paintbrush, Shield, SlidersHorizontal, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { PageLayout } from "@/components/dashboard/PageLayout";
+import { PageHeader } from "@/components/dashboard/PageHeader";
+import { useUiPreferences } from "@/components/ui-preferences-provider";
+import type { AccentPreference, DensityPreference, ThemePreference } from "@/lib/ui-preferences";
 
 export default function SettingsPage() {
+  const { preferences, updatePreferences, resetPreferences } = useUiPreferences();
+
   return (
-    <div className="min-h-screen bg-gray-50/50 p-6 md:p-8 space-y-6">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" size="icon" className="h-10 w-10">
-            <Link href="/dashboard">
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
+    <PageLayout>
+      <PageHeader
+        title="System Settings"
+        description="Configure alerts, safety thresholds, and operator preferences."
+        actions={
+          <Button variant="outline" onClick={resetPreferences}>
+            <RotateCcw className="h-4 w-4 mr-2" /> Reset UI Preferences
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">System Settings</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Configure alerts, safety thresholds, and operator preferences.
-            </p>
-          </div>
-        </div>
-        <Button>
-          <Save className="h-4 w-4 mr-2" /> Save Changes
-        </Button>
-      </header>
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Paintbrush className="h-5 w-5" /> UI Customization
+            </CardTitle>
+            <CardDescription>Personalize dashboard theme, density, and accent color.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="mb-1 block text-sm text-gray-600">Theme</label>
+              <Select
+                value={preferences.theme}
+                onChange={(e) => updatePreferences({ theme: e.target.value as ThemePreference })}
+              >
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </Select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm text-gray-600">Display Density</label>
+              <Select
+                value={preferences.density}
+                onChange={(e) => updatePreferences({ density: e.target.value as DensityPreference })}
+              >
+                <option value="comfortable">Comfortable</option>
+                <option value="compact">Compact</option>
+              </Select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm text-gray-600">Accent Color</label>
+              <div className="grid grid-cols-4 gap-2">
+                {(
+                  [
+                    { value: "emerald", className: "bg-emerald-500", label: "Emerald" },
+                    { value: "violet", className: "bg-violet-500", label: "Violet" },
+                    { value: "sky", className: "bg-sky-500", label: "Sky" },
+                    { value: "rose", className: "bg-rose-500", label: "Rose" },
+                  ] as const
+                ).map((accent) => (
+                  <button
+                    key={accent.value}
+                    type="button"
+                    title={accent.label}
+                    onClick={() => updatePreferences({ accent: accent.value as AccentPreference })}
+                    className={`h-9 rounded-md border-2 ${accent.className} ${
+                      preferences.accent === accent.value ? "border-gray-900" : "border-transparent"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
@@ -61,15 +116,15 @@ export default function SettingsPage() {
           <CardContent className="grid gap-3">
             <div>
               <label className="mb-1 block text-sm text-gray-600">Temperature Warning (°C)</label>
-              <input defaultValue={28} type="number" className="w-full rounded-md border bg-white px-3 py-2 text-sm" />
+              <Input defaultValue={28} type="number" />
             </div>
             <div>
               <label className="mb-1 block text-sm text-gray-600">Humidity Warning (%)</label>
-              <input defaultValue={65} type="number" className="w-full rounded-md border bg-white px-3 py-2 text-sm" />
+              <Input defaultValue={65} type="number" />
             </div>
             <div>
               <label className="mb-1 block text-sm text-gray-600">CO2 Warning (ppm)</label>
-              <input defaultValue={1200} type="number" className="w-full rounded-md border bg-white px-3 py-2 text-sm" />
+              <Input defaultValue={1200} type="number" />
             </div>
           </CardContent>
         </Card>
@@ -101,6 +156,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageLayout>
   );
 }

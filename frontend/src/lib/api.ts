@@ -1,44 +1,58 @@
-import axios from 'axios';
+type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
-// Create an Axios instance
-const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+type RequestOptions = {
+  headers?: Record<string, string>;
+  body?: unknown;
+};
 
-// Request interceptor to attach token
-api.interceptors.request.use(
-  (config) => {
-    // Only access localStorage in client-side code
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token');
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
+
+function getAuthHeader(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function request<T>(
+  method: HttpMethod,
+  path: string,
+  options: RequestOptions = {},
+): Promise<{ data: T }> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...getAuthHeader(),
+    ...(options.headers ?? {}),
+  };
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Request failed with status ${response.status}`);
   }
-);
 
-// Response interceptor for error handling
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    // Handle 401 Unauthorized globally (e.g., redirect to login)
-    if (error.response && error.response.status === 401) {
-      if (typeof window !== 'undefined') {
-        // Optional: clear token and redirect
-        // localStorage.removeItem('token');
-        // window.location.href = '/login';
-      }
-    }
-    return Promise.reject(error);
-  }
-);
+  const text = await response.text();
+  const data = text ? (JSON.parse(text) as T) : ({} as T);
+  return { data };
+}
+
+const api = {
+  get: <T>(path: string, options?: Omit<RequestOptions, "body">) =>
+    request<T>("GET", path, options),
+  post: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, "body">) =>
+    request<T>("POST", path, { ...options, body }),
+  put: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, "body">) =>
+    request<T>("PUT", path, { ...options, body }),
+  patch: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, "body">) =>
+    request<T>("PATCH", path, { ...options, body }),
+  delete: <T>(path: string, options?: Omit<RequestOptions, "body">) =>
+    request<T>("DELETE", path, options),
+};
 
 export default api;

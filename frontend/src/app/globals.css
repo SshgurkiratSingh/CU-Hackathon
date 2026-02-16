@@ -142,3 +142,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+:root[data-density="compact"] {
+  --radius: 0.5rem;
+}
+
+:root[data-density="compact"] body {
+  font-size: 0.95rem;
+}
+
+:root[data-density="compact"] input,
+:root[data-density="compact"] select,
+:root[data-density="compact"] button,
+:root[data-density="compact"] textarea {
+  min-height: 2rem;
+}

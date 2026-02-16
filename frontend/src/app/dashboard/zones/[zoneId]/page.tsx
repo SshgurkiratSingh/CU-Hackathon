@@ -44,6 +44,11 @@ export default function ZoneDetailPage() {
   const [zone, setZone] = useState<Zone | null>(null);
   const [history, setHistory] = useState<TelemetryPoint[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     if (zoneId) {
@@ -182,75 +187,79 @@ export default function ZoneDetailPage() {
             </CardHeader>
             <CardContent className="pl-0">
               <div className="h-[350px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={history}
-                    margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      vertical={false}
-                      stroke="#e5e7eb"
-                    />
-                    <XAxis
-                      dataKey="timestamp"
-                      stroke="#9ca3af"
-                      fontSize={10}
-                      tickLine={false}
-                      axisLine={false}
-                      minTickGap={30}
-                    />
-                    <YAxis
-                      yAxisId="left"
-                      stroke="#9ca3af"
-                      fontSize={12}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(value) => `${value}°`}
-                    />
-                    <YAxis
-                      yAxisId="right"
-                      orientation="right"
-                      stroke="#9ca3af"
-                      fontSize={12}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(value) => `${value}%`}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#fff",
-                        borderRadius: "8px",
-                        border: "1px solid #e5e7eb",
-                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                      }}
-                      itemStyle={{ fontSize: "12px" }}
-                    />
-                    <Legend
-                      wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }}
-                    />
-                    <Line
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey="temp"
-                      name="Temperature (°C)"
-                      stroke="#2563eb"
-                      strokeWidth={2.5}
-                      dot={false}
-                      activeDot={{ r: 6, fill: "#2563eb", strokeWidth: 0 }}
-                    />
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="humidity"
-                      name="Humidity (%)"
-                      stroke="#06b6d4"
-                      strokeWidth={2.5}
-                      dot={false}
-                      activeDot={{ r: 6, fill: "#06b6d4", strokeWidth: 0 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {isMounted ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={history}
+                      margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        vertical={false}
+                        stroke="#e5e7eb"
+                      />
+                      <XAxis
+                        dataKey="timestamp"
+                        stroke="#9ca3af"
+                        fontSize={10}
+                        tickLine={false}
+                        axisLine={false}
+                        minTickGap={30}
+                      />
+                      <YAxis
+                        yAxisId="left"
+                        stroke="#9ca3af"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(value) => `${value}°`}
+                      />
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        stroke="#9ca3af"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(value) => `${value}%`}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#fff",
+                          borderRadius: "8px",
+                          border: "1px solid #e5e7eb",
+                          boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                        }}
+                        itemStyle={{ fontSize: "12px" }}
+                      />
+                      <Legend
+                        wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }}
+                      />
+                      <Line
+                        yAxisId="left"
+                        type="monotone"
+                        dataKey="temp"
+                        name="Temperature (°C)"
+                        stroke="#2563eb"
+                        strokeWidth={2.5}
+                        dot={false}
+                        activeDot={{ r: 6, fill: "#2563eb", strokeWidth: 0 }}
+                      />
+                      <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="humidity"
+                        name="Humidity (%)"
+                        stroke="#06b6d4"
+                        strokeWidth={2.5}
+                        dot={false}
+                        activeDot={{ r: 6, fill: "#06b6d4", strokeWidth: 0 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full items-center justify-center text-sm text-gray-400">Preparing chart...</div>
+                )}
               </div>
             </CardContent>
           </Card>

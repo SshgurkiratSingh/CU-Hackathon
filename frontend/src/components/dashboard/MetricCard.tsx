@@ -22,7 +22,7 @@ export function MetricCard({
   className,
 }: MetricCardProps) {
   return (
-    <Card className={cn("overflow-hidden", className)}>
+    <Card className={cn("overflow-hidden rounded-xl border shadow-sm", className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {title}
@@ -34,7 +34,7 @@ export function MetricCard({
         )}
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">
+        <div className="text-[1.95rem] font-bold leading-none text-gray-900 dark:text-slate-100">
           {value}
           {unit && (
             <span className="ml-1 text-sm font-normal text-muted-foreground">
