@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { Alert as AlertType } from "@/types";
-import { useAlerts, useZones } from "@/hooks/use-dashboard-data";
+import {
+  useAcknowledgeAlert,
+  useAlerts,
+  useZones,
+} from "@/hooks/use-dashboard-data";
 import {
   Card,
   CardContent,
@@ -28,15 +32,29 @@ function severityStyle(severity: AlertType["severity"]) {
 export default function AlertsPage() {
   const { data: alerts = [], isLoading } = useAlerts();
   const { data: zones = [] } = useZones();
+  const acknowledgeMutation = useAcknowledgeAlert();
   const critical = alerts.filter((a) => a.severity === "critical").length;
   const unresolved = alerts.filter((a) => !a.acknowledged).length;
+
+  const acknowledgeAll = () => {
+    alerts
+      .filter((alert) => !alert.acknowledged)
+      .forEach((alert) => acknowledgeMutation.mutate(alert.id));
+  };
 
   return (
     <PageLayout>
       <PageHeader
         title="Alerts Center"
         description={`Live incidents and acknowledgement workflow${isLoading ? " (loading...)" : ""}.`}
-        actions={<Button>Mark All Acknowledged</Button>}
+        actions={
+          <Button
+            onClick={acknowledgeAll}
+            disabled={acknowledgeMutation.isPending || unresolved === 0}
+          >
+            Mark All Acknowledged
+          </Button>
+        }
       />
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -95,6 +113,10 @@ export default function AlertsPage() {
                     <Button
                       size="sm"
                       variant={alert.acknowledged ? "secondary" : "default"}
+                      disabled={
+                        acknowledgeMutation.isPending || alert.acknowledged
+                      }
+                      onClick={() => acknowledgeMutation.mutate(alert.id)}
                     >
                       {alert.acknowledged ? "Acknowledged" : "Acknowledge"}
                     </Button>

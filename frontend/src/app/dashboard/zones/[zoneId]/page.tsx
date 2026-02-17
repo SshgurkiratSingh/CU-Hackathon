@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useParams } from "next/navigation";
 import {
-  getZoneById,
-  getMockTelemetryHistory,
-  getDevicesByZoneId,
-} from "@/lib/mock-data";
-import { Zone, TelemetryPoint, Device } from "@/types";
+  useCreateAction,
+  useDevices,
+  useTelemetrySeries,
+  useZones,
+} from "@/hooks/use-dashboard-data";
 import {
   Card,
   CardContent,
@@ -38,28 +38,86 @@ import {
   Legend,
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
+import { TopicWidgetCard } from "@/components/dashboard/TopicWidgetCard";
+import { SensorType } from "@/types";
+
+function valueForSensorType(
+  sensorType: SensorType,
+  metrics: {
+    temp: { value: number };
+    humidity: { value: number };
+    co2: { value: number };
+    light: { value: number };
+    soil_moisture?: { value: number };
+  },
+) {
+  if (sensorType === "temperature") return metrics.temp.value;
+  if (sensorType === "humidity") return metrics.humidity.value;
+  if (sensorType === "co2") return metrics.co2.value;
+  if (sensorType === "light") return metrics.light.value;
+  if (sensorType === "soil_moisture") return metrics.soil_moisture?.value;
+  return undefined;
+}
+
+function historyForSensorType(
+  sensorType: SensorType,
+  rows: Array<{ temp: number; humidity: number; co2?: number; light?: number }>,
+) {
+  if (sensorType === "temperature")
+    return rows.map((row) => row.temp).filter((v) => Number.isFinite(v));
+  if (sensorType === "humidity")
+    return rows.map((row) => row.humidity).filter((v) => Number.isFinite(v));
+  if (sensorType === "co2")
+    return rows.map((row) => row.co2 ?? 0).filter((v) => Number.isFinite(v));
+  if (sensorType === "light")
+    return rows.map((row) => row.light ?? 0).filter((v) => Number.isFinite(v));
+  return [];
+}
 
 export default function ZoneDetailPage() {
   const { zoneId } = useParams<{ zoneId: string }>();
-  const [zone, setZone] = useState<Zone | null>(null);
-  const [history, setHistory] = useState<TelemetryPoint[]>([]);
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
+  const { data: zones = [] } = useZones();
+  const { data: allDevices = [] } = useDevices();
+  const { data: history = [] } = useTelemetrySeries(zoneId || "", 24);
+  const createActionMutation = useCreateAction();
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const zone = useMemo(
+    () => zones.find((entry) => entry.id === zoneId) ?? null,
+    [zones, zoneId],
+  );
 
-  useEffect(() => {
-    if (zoneId) {
-      const foundZone = getZoneById(zoneId);
-      if (foundZone) {
-        setZone(foundZone);
-        setHistory(getMockTelemetryHistory(zoneId));
-        setDevices(getDevicesByZoneId(zoneId));
-      }
-    }
-  }, [zoneId]);
+  const devices = useMemo(
+    () => allDevices.filter((device) => device.zoneId === zoneId),
+    [allDevices, zoneId],
+  );
+
+  const zoneWidgets = useMemo(() => {
+    if (!zone) return [];
+    return devices
+      .flatMap((device) =>
+        (device.sensors || []).map((sensor) => ({
+          key: `${device.id}-${sensor.key}`,
+          device,
+          sensor,
+          value: valueForSensorType(sensor.sensorType, zone.metrics),
+          historyValues: historyForSensorType(sensor.sensorType, history),
+        })),
+      )
+      .slice(0, 12);
+  }, [devices, history, zone]);
+
+  const runQuickAction = (
+    name: string,
+    parameters: Record<string, unknown> = {},
+  ) => {
+    if (!zoneId) return;
+    createActionMutation.mutate({
+      name,
+      type: "manual",
+      siteId: zoneId,
+      parameters,
+    });
+  };
 
   if (!zone) {
     return (
@@ -110,7 +168,15 @@ export default function ZoneDetailPage() {
               Schedule Rules
             </Link>
           </Button>
-          <Button variant="destructive">Emergency Stop</Button>
+          <Button
+            variant="destructive"
+            disabled={createActionMutation.isPending}
+            onClick={() =>
+              runQuickAction("Emergency Stop", { reason: "operator_override" })
+            }
+          >
+            Emergency Stop
+          </Button>
         </div>
       </div>
 
@@ -188,81 +254,117 @@ export default function ZoneDetailPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pl-0">
-              <div className="h-[350px] w-full">
-                {isMounted ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={history}
-                      margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        vertical={false}
-                        stroke="#e5e7eb"
-                      />
-                      <XAxis
-                        dataKey="timestamp"
-                        stroke="#9ca3af"
-                        fontSize={10}
-                        tickLine={false}
-                        axisLine={false}
-                        minTickGap={30}
-                      />
-                      <YAxis
-                        yAxisId="left"
-                        stroke="#9ca3af"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(value) => `${value}°`}
-                      />
-                      <YAxis
-                        yAxisId="right"
-                        orientation="right"
-                        stroke="#9ca3af"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(value) => `${value}%`}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#fff",
-                          borderRadius: "8px",
-                          border: "1px solid #e5e7eb",
-                          boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                        }}
-                        itemStyle={{ fontSize: "12px" }}
-                      />
-                      <Legend
-                        wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }}
-                      />
-                      <Line
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="temp"
-                        name="Temperature (°C)"
-                        stroke="#2563eb"
-                        strokeWidth={2.5}
-                        dot={false}
-                        activeDot={{ r: 6, fill: "#2563eb", strokeWidth: 0 }}
-                      />
-                      <Line
-                        yAxisId="right"
-                        type="monotone"
-                        dataKey="humidity"
-                        name="Humidity (%)"
-                        stroke="#06b6d4"
-                        strokeWidth={2.5}
-                        dot={false}
-                        activeDot={{ r: 6, fill: "#06b6d4", strokeWidth: 0 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+              <div className="h-87.5 w-full min-w-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={history}
+                    margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="#e5e7eb"
+                    />
+                    <XAxis
+                      dataKey="timestamp"
+                      stroke="#9ca3af"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                      minTickGap={30}
+                    />
+                    <YAxis
+                      yAxisId="left"
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => `${value}°`}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => `${value}%`}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#fff",
+                        borderRadius: "8px",
+                        border: "1px solid #e5e7eb",
+                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                      }}
+                      itemStyle={{ fontSize: "12px" }}
+                    />
+                    <Legend
+                      wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }}
+                    />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="temp"
+                      name="Temperature (°C)"
+                      stroke="#2563eb"
+                      strokeWidth={2.5}
+                      dot={false}
+                      activeDot={{ r: 6, fill: "#2563eb", strokeWidth: 0 }}
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="humidity"
+                      name="Humidity (%)"
+                      stroke="#06b6d4"
+                      strokeWidth={2.5}
+                      dot={false}
+                      activeDot={{ r: 6, fill: "#06b6d4", strokeWidth: 0 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Topic Widgets</CardTitle>
+              <CardDescription>
+                Visualization panels linked to configured device MQTT topics.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {zoneWidgets.length > 0 ? (
+                  zoneWidgets.map((entry) => (
+                    <TopicWidgetCard
+                      key={entry.key}
+                      deviceName={entry.device.name}
+                      zoneId={zone.id}
+                      sensor={entry.sensor}
+                      value={entry.value}
+                      status={entry.device.status}
+                      history={entry.historyValues}
+                      onQuickAction={(mode) =>
+                        runQuickAction(
+                          `Widget ${mode.toUpperCase()} · ${entry.sensor.label}`,
+                          {
+                            mode,
+                            sensorKey: entry.sensor.key,
+                            sensorType: entry.sensor.sensorType,
+                            mqttTopic: entry.sensor.mqttTopic,
+                            targetDeviceId: entry.device.id,
+                          },
+                        )
+                      }
+                    />
+                  ))
                 ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-gray-400">
-                    Preparing chart...
-                  </div>
+                  <p className="text-sm text-gray-400">
+                    No sensor widgets configured for this zone.
+                  </p>
                 )}
               </div>
             </CardContent>
@@ -322,8 +424,17 @@ export default function ZoneDetailPage() {
                             </Badge>
                           </td>
                           <td className="p-3 text-right">
-                            <Button variant="ghost" size="sm" className="h-8">
-                              Configure
+                            <Button
+                              asChild
+                              variant="ghost"
+                              size="sm"
+                              className="h-8"
+                            >
+                              <Link
+                                href={`/dashboard/devices?zone=${encodeURIComponent(zone.id)}&configure=${encodeURIComponent(device.id)}`}
+                              >
+                                Configure
+                              </Link>
                             </Button>
                           </td>
                         </tr>
@@ -360,10 +471,24 @@ export default function ZoneDetailPage() {
                   Irrigation
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button className="w-full" variant="outline" size="sm">
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      runQuickAction("Irrigation Run", { durationMinutes: 2 })
+                    }
+                  >
                     Run 2m
                   </Button>
-                  <Button className="w-full" variant="outline" size="sm">
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      runQuickAction("Irrigation Run", { durationMinutes: 5 })
+                    }
+                  >
                     Run 5m
                   </Button>
                 </div>
@@ -378,6 +503,9 @@ export default function ZoneDetailPage() {
                     variant="secondary"
                     size="sm"
                     className="justify-start"
+                    onClick={() =>
+                      runQuickAction("Force Extraction", { mode: "extraction" })
+                    }
                   >
                     <Wind className="w-4 h-4 mr-2" /> Force Extraction
                   </Button>
@@ -385,6 +513,9 @@ export default function ZoneDetailPage() {
                     variant="secondary"
                     size="sm"
                     className="justify-start"
+                    onClick={() =>
+                      runQuickAction("Circulate Air", { mode: "circulate" })
+                    }
                   >
                     <Fan className="w-4 h-4 mr-2" /> Circulate Air
                   </Button>

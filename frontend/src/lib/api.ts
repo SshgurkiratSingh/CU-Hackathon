@@ -1,11 +1,11 @@
+import { API_BASE_URL } from "@/lib/server-config";
+
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 type RequestOptions = {
   headers?: Record<string, string>;
   body?: unknown;
 };
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
 
 function getAuthHeader(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -24,7 +24,7 @@ async function request<T>(
     ...(options.headers ?? {}),
   };
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,

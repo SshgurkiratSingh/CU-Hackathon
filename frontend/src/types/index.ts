@@ -19,7 +19,13 @@ export interface EnvironmentalMetrics {
   ec?: Metric;
 }
 
-export type ZoneType = 'propagation' | 'vegetative' | 'flowering' | 'drying' | 'curing';
+export type ZoneType =
+  | 'propagation'
+  | 'vegetative'
+  | 'flowering'
+  | 'drying'
+  | 'curing'
+  | (string & {});
 export type ZoneStatus = 'optimal' | 'warning' | 'critical' | 'offline';
 
 export interface Zone {
@@ -27,14 +33,56 @@ export interface Zone {
   name: string;
   type: ZoneType;
   status: ZoneStatus;
+  description?: string;
+  crop?: string;
+  targets?: {
+    temp?: number;
+    humidity?: number;
+    co2?: number;
+  };
   metrics: EnvironmentalMetrics;
   deviceCount: number;
   alerts: number;
   lastUpdated: string;
 }
 
-export type DeviceType = 'sensor' | 'actuator' | 'camera' | 'controller';
+export type DeviceType =
+  | 'sensor'
+  | 'actuator'
+  | 'hybrid'
+  | 'combined'
+  | 'camera'
+  | 'controller';
 export type DeviceStatus = 'online' | 'offline' | 'error' | 'maintenance';
+export type SensorType =
+  | 'temperature'
+  | 'humidity'
+  | 'co2'
+  | 'light'
+  | 'soil_moisture'
+  | 'barometer'
+  | 'mmwave_presence'
+  | 'vpd'
+  | 'custom';
+
+export interface DeviceSensor {
+  key: string;
+  label: string;
+  sensorType: SensorType;
+  unit?: string;
+  mqttTopic: string;
+  widget?:
+    | 'gauge'
+    | 'line'
+    | 'graph'
+    | 'status'
+    | 'sparkline'
+    | 'number'
+    | 'button'
+    | 'led';
+  widgetKind?: 'data' | 'action';
+  isPrimary?: boolean;
+}
 
 export interface Device {
   id: string;
@@ -44,7 +92,9 @@ export interface Device {
   subType: string; // e.g. "DHT22", "SolenoidValve"
   status: DeviceStatus;
   lastSeen: string;
-  meta?: Record<string, any>;
+  sensors?: DeviceSensor[];
+  primarySensorKey?: string;
+  meta?: Record<string, unknown>;
 }
 
 export interface Alert {
@@ -134,4 +184,16 @@ export interface TelemetryPoint {
   humidity: number;
   co2?: number;
   light?: number;
+}
+
+export interface TopicTelemetryRow {
+  id: string;
+  siteId: string;
+  topic: string;
+  deviceId?: string;
+  sensorKey?: string;
+  sensorType: string;
+  value: number;
+  unit?: string;
+  timestamp: string;
 }

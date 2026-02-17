@@ -2,63 +2,64 @@ const pino = require("pino");
 
 const logger = pino();
 
-const authMiddleware = (sessionManager) => {
-  return async (req, res, next) => {
-    try {
-      const token = req.headers.authorization?.split(" ")[1];
-      if (!token) {
-        return res.status(401).json({ error: "Missing authorization token" });
-      }
-      const session = await sessionManager.verifyToken(token);
-      req.session = session;
-      req.user = {
-        id: session.userId,
-        role: session.role,
-        siteIds: JSON.parse(session.siteIds || "[]"),
-      };
-      await sessionManager.touchSession(session.sessionId);
-      next();
-    } catch (error) {
-      logger.warn(
-        { errorMsg: error?.message, errorStack: error?.stack },
-        "Auth middleware failed",
-      );
-      console.error("[AUTH ERROR]", error?.message);
-      res.status(401).json({ error: "Invalid or expired token" });
-    }
+const attachNoAuthContext = (req) => {
+  req.session = req.session || { sessionId: "no-auth", type: "NO_AUTH" };
+  req.user = req.user || {
+    id: "no-auth-user",
+    role: "admin",
+    siteIds: ["*"],
   };
 };
 
-const kioskMiddleware = (sessionManager) => {
+const authMiddleware = (maybeSessionManagerOrReq, maybeRes, maybeNext) => {
+  // Support both usages:
+  // 1) router.get("/", authMiddleware, ...)
+  // 2) app.use("/x", authMiddleware(sessionManager), ...)
+  if (
+    maybeSessionManagerOrReq &&
+    typeof maybeSessionManagerOrReq === "object" &&
+    maybeSessionManagerOrReq.headers &&
+    typeof maybeNext === "function"
+  ) {
+    attachNoAuthContext(maybeSessionManagerOrReq);
+    return maybeNext();
+  }
+
   return async (req, res, next) => {
-    try {
-      const token = req.headers.authorization?.split(" ")[1];
-      if (token) {
-        const session = await sessionManager.verifyToken(token);
-        if (session.type === "KIOSK") {
-          req.session = session;
-          req.user = { role: "kiosk", siteIds: ["*"] };
-          return next();
-        }
-      }
-      const { token: kioskToken, sessionId } =
-        await sessionManager.createKioskSession();
-      req.session = { sessionId, type: "KIOSK" };
-      req.user = { role: "kiosk", siteIds: ["*"] };
-      res.setHeader("X-Kiosk-Token", kioskToken);
-      next();
-    } catch (error) {
-      logger.warn({ error }, "Kiosk middleware failed");
-      res.status(500).json({ error: "Kiosk initialization failed" });
-    }
+    attachNoAuthContext(req);
+    next();
+  };
+};
+
+const kioskMiddleware = (maybeSessionManagerOrReq, maybeRes, maybeNext) => {
+  if (
+    maybeSessionManagerOrReq &&
+    typeof maybeSessionManagerOrReq === "object" &&
+    maybeSessionManagerOrReq.headers &&
+    typeof maybeNext === "function"
+  ) {
+    maybeSessionManagerOrReq.session = maybeSessionManagerOrReq.session || {
+      sessionId: "no-auth-kiosk",
+      type: "KIOSK",
+    };
+    maybeSessionManagerOrReq.user = maybeSessionManagerOrReq.user || {
+      id: "kiosk-user",
+      role: "admin",
+      siteIds: ["*"],
+    };
+    return maybeNext();
+  }
+
+  return async (req, res, next) => {
+    req.session = req.session || { sessionId: "no-auth-kiosk", type: "KIOSK" };
+    req.user = req.user || { id: "kiosk-user", role: "admin", siteIds: ["*"] };
+    next();
   };
 };
 
 const authorize = (allowedRoles) => {
   return (req, res, next) => {
-    if (!req.user || !allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
+    // Authorization disabled
     next();
   };
 };

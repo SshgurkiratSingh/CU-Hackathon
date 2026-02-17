@@ -1,12 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Activity, Thermometer, Droplets } from "lucide-react";
-import { getMockTelemetryHistory } from "@/lib/mock-data";
-import { useZones } from "@/hooks/use-dashboard-data";
+import { useMemo, useState } from "react";
+import { Activity, Thermometer, Droplets } from "lucide-react";
+import { useTelemetrySeries, useZones } from "@/hooks/use-dashboard-data";
 import { useWebSocket } from "@/hooks/use-websocket";
-import { TelemetryPoint } from "@/types";
 import {
   Card,
   CardContent,
@@ -14,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   LineChart,
   Line,
@@ -33,26 +29,11 @@ import { Select } from "@/components/ui/select";
 export default function TelemetryPage() {
   const { data: zones = [] } = useZones();
   const [zoneId, setZoneId] = useState<string>("");
-  const [history, setHistory] = useState<TelemetryPoint[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
   const { status, lastMessage } = useWebSocket({ autoConnect: true });
+  const selectedZoneId = zoneId || zones[0]?.id || "";
+  const { data: history = [] } = useTelemetrySeries(selectedZoneId, 24);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!zoneId && zones.length > 0) {
-      setZoneId(zones[0].id);
-    }
-  }, [zoneId, zones]);
-
-  useEffect(() => {
-    if (!zoneId) return;
-    setHistory(getMockTelemetryHistory(zoneId, 24));
-  }, [zoneId]);
-
-  const selectedZone = zones.find((z) => z.id === zoneId);
+  const selectedZone = zones.find((z) => z.id === selectedZoneId);
 
   const avgTemp = useMemo(() => {
     if (!history.length) return 0;
@@ -67,7 +48,8 @@ export default function TelemetryPage() {
   }, [history]);
 
   const isDarkMode =
-    isMounted && document.documentElement.classList.contains("dark");
+    typeof document !== "undefined" &&
+    document.documentElement.classList.contains("dark");
   const chartGrid = isDarkMode ? "#334155" : "#e5e7eb";
   const chartAxis = isDarkMode ? "#94a3b8" : "#9ca3af";
   const chartTooltipStyle = {
@@ -133,76 +115,70 @@ export default function TelemetryPage() {
           <CardDescription>24-hour trend for selected stream.</CardDescription>
         </CardHeader>
         <CardContent className="pl-0">
-          <div className="h-[360px] w-full">
-            {isMounted ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={history}
-                  margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke={chartGrid}
-                  />
-                  <XAxis
-                    dataKey="timestamp"
-                    stroke={chartAxis}
-                    fontSize={10}
-                    tickLine={false}
-                    axisLine={false}
-                    minTickGap={30}
-                  />
-                  <YAxis
-                    yAxisId="left"
-                    stroke={chartAxis}
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(v) => `${v}°`}
-                  />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    stroke={chartAxis}
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(v) => `${v}%`}
-                  />
-                  <Tooltip contentStyle={chartTooltipStyle} />
-                  <Legend
-                    wrapperStyle={{
-                      fontSize: "12px",
-                      paddingTop: "10px",
-                      color: isDarkMode ? "#cbd5e1" : "#475569",
-                    }}
-                  />
-                  <Line
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="temp"
-                    name="Temperature"
-                    stroke="#2563eb"
-                    strokeWidth={2.5}
-                    dot={false}
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="humidity"
-                    name="Humidity"
-                    stroke="#06b6d4"
-                    strokeWidth={2.5}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex h-full items-center justify-center text-sm text-gray-400">
-                Preparing chart...
-              </div>
-            )}
+          <div className="h-90 w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={history}
+                margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke={chartGrid}
+                />
+                <XAxis
+                  dataKey="timestamp"
+                  stroke={chartAxis}
+                  fontSize={10}
+                  tickLine={false}
+                  axisLine={false}
+                  minTickGap={30}
+                />
+                <YAxis
+                  yAxisId="left"
+                  stroke={chartAxis}
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `${v}°`}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  stroke={chartAxis}
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `${v}%`}
+                />
+                <Tooltip contentStyle={chartTooltipStyle} />
+                <Legend
+                  wrapperStyle={{
+                    fontSize: "12px",
+                    paddingTop: "10px",
+                    color: isDarkMode ? "#cbd5e1" : "#475569",
+                  }}
+                />
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="temp"
+                  name="Temperature"
+                  stroke="#2563eb"
+                  strokeWidth={2.5}
+                  dot={false}
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="humidity"
+                  name="Humidity"
+                  stroke="#06b6d4"
+                  strokeWidth={2.5}
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </CardContent>
       </Card>

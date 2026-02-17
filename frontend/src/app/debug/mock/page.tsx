@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import dynamic from "next/dynamic";
 import {
   MockDevice,
@@ -21,14 +21,12 @@ const MockMap = dynamic(() => import("@/components/MockMap"), {
 });
 
 export default function MockPage() {
-  const [devices, setDevices] = useState<MockDevice[]>([]);
-  const [lastUpdated, setLastUpdated] = useState<string>("");
-
-  useEffect(() => {
-    // Client-side only init
-    setDevices(generateInitialDevices(5));
-    setLastUpdated(new Date().toLocaleTimeString());
-  }, []);
+  const [devices, setDevices] = useState<MockDevice[]>(() =>
+    generateInitialDevices(5),
+  );
+  const [lastUpdated, setLastUpdated] = useState<string>(() =>
+    new Date().toLocaleTimeString(),
+  );
 
   const handleRandomize = () => {
     const updated = devices.map((d) => updateDeviceTelemetry(d));

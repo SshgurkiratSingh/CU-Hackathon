@@ -40,7 +40,7 @@ GEMINI_MODEL=gemini-2.0-flash
 LLM_THINKING_ENABLED=true
 
 # Application
-PORT=3000
+PORT=4000
 NODE_ENV=development
 LOG_LEVEL=debug
 EOF
@@ -108,8 +108,8 @@ fi
 
 echo ""
 echo "Starting backend server..."
-echo "  API: http://localhost:3000"
-echo "  Health: http://localhost:3000/health"
+echo "  API: http://localhost:4000"
+echo "  Health: http://localhost:4000/health"
 echo ""
 
 # Start backend

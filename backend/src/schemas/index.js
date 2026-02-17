@@ -17,11 +17,80 @@ const userSchema = new mongoose.Schema({
 
 const telemetrySchema = new mongoose.Schema({
   siteId: { type: String, required: true },
+  deviceId: String,
+  sensorKey: String,
   sensorType: String,
   value: Number,
   unit: String,
+  topic: String,
   timestamp: { type: Date, default: Date.now },
   userId: String,
+});
+
+const deviceSensorSchema = new mongoose.Schema(
+  {
+    key: { type: String, required: true },
+    label: { type: String, required: true },
+    sensorType: {
+      type: String,
+      enum: [
+        "temperature",
+        "humidity",
+        "co2",
+        "light",
+        "soil_moisture",
+        "barometer",
+        "mmwave_presence",
+        "vpd",
+        "custom",
+      ],
+      default: "custom",
+    },
+    unit: { type: String, default: "" },
+    mqttTopic: { type: String, required: true },
+    widget: {
+      type: String,
+      enum: [
+        "gauge",
+        "line",
+        "graph",
+        "status",
+        "sparkline",
+        "number",
+        "button",
+        "led",
+      ],
+      default: "gauge",
+    },
+    widgetKind: {
+      type: String,
+      enum: ["data", "action"],
+      default: "data",
+    },
+    isPrimary: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
+
+const deviceSchema = new mongoose.Schema({
+  deviceId: { type: String, required: true, unique: true, index: true },
+  name: { type: String, required: true },
+  type: {
+    type: String,
+    enum: ["sensor", "actuator", "hybrid", "combined", "camera", "controller"],
+    default: "sensor",
+  },
+  siteId: { type: String, required: true, index: true },
+  status: {
+    type: String,
+    enum: ["online", "offline", "error", "maintenance", "active"],
+    default: "active",
+  },
+  primarySensorKey: String,
+  sensors: { type: [deviceSensorSchema], default: [] },
+  metadata: mongoose.Schema.Types.Mixed,
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
 });
 
 const ruleSchema = new mongoose.Schema({
@@ -80,6 +149,22 @@ const settingsSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
+const zoneSchema = new mongoose.Schema({
+  siteId: { type: String, required: true, unique: true, trim: true },
+  name: { type: String, required: true, trim: true },
+  type: { type: String, default: "vegetative" },
+  description: { type: String, default: "" },
+  crop: { type: String, default: "" },
+  targets: {
+    temp: Number,
+    humidity: Number,
+    co2: Number,
+  },
+  createdBy: String,
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+});
+
 const llmThinkingLogSchema = new mongoose.Schema({
   ruleId: String,
   thinking: String,
@@ -95,7 +180,9 @@ const Action = mongoose.model("Action", actionSchema);
 const Shadow = mongoose.model("Shadow", shadowSchema);
 const Alert = mongoose.model("Alert", alertSchema);
 const Settings = mongoose.model("Settings", settingsSchema);
+const Zone = mongoose.model("Zone", zoneSchema);
 const LLMThinkingLog = mongoose.model("LLMThinkingLog", llmThinkingLogSchema);
+const Device = mongoose.model("Device", deviceSchema);
 
 module.exports = {
   User,
@@ -105,5 +192,7 @@ module.exports = {
   Shadow,
   Alert,
   Settings,
+  Zone,
   LLMThinkingLog,
+  Device,
 };

@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   applyUiPreferences,
   defaultUiPreferences,
@@ -15,16 +22,19 @@ type UiPreferencesContextType = {
   resetPreferences: () => void;
 };
 
-const UiPreferencesContext = createContext<UiPreferencesContextType | null>(null);
+const UiPreferencesContext = createContext<UiPreferencesContextType | null>(
+  null,
+);
 
-export default function UiPreferencesProvider({ children }: { children: React.ReactNode }) {
-  const [preferences, setPreferences] = useState<UiPreferences>(defaultUiPreferences);
-
-  useEffect(() => {
-    const stored = readUiPreferences();
-    setPreferences(stored);
-    applyUiPreferences(stored);
-  }, []);
+export default function UiPreferencesProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [preferences, setPreferences] = useState<UiPreferences>(() => {
+    if (typeof window === "undefined") return defaultUiPreferences;
+    return readUiPreferences();
+  });
 
   useEffect(() => {
     applyUiPreferences(preferences);
@@ -59,13 +69,19 @@ export default function UiPreferencesProvider({ children }: { children: React.Re
     [preferences, resetPreferences, updatePreferences],
   );
 
-  return <UiPreferencesContext.Provider value={value}>{children}</UiPreferencesContext.Provider>;
+  return (
+    <UiPreferencesContext.Provider value={value}>
+      {children}
+    </UiPreferencesContext.Provider>
+  );
 }
 
 export function useUiPreferences() {
   const context = useContext(UiPreferencesContext);
   if (!context) {
-    throw new Error("useUiPreferences must be used within UiPreferencesProvider");
+    throw new Error(
+      "useUiPreferences must be used within UiPreferencesProvider",
+    );
   }
 
   return context;

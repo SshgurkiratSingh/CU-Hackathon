@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { PlayCircle, CheckCircle2, XCircle } from "lucide-react";
 import {
+  useCreateAction,
+  useExecuteAction,
   useActions,
   useAlertHistory,
   useDeviceHistory,
@@ -32,6 +34,8 @@ export default function ActionsPage() {
   const { data: ruleHistory = [] } = useRuleHistory();
   const { data: deviceHistory = [] } = useDeviceHistory();
   const { data: zones = [] } = useZones();
+  const createActionMutation = useCreateAction();
+  const executeActionMutation = useExecuteAction();
 
   const [zoneFilter, setZoneFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<
@@ -70,13 +74,27 @@ export default function ActionsPage() {
     (entry) => entry.source !== "manual",
   ).length;
 
+  const triggerAction = () => {
+    const zoneId = zoneFilter === "all" ? zones[0]?.id : zoneFilter;
+    if (!zoneId) return;
+    createActionMutation.mutate({
+      name: `Manual Action ${new Date().toLocaleTimeString()}`,
+      type: "manual",
+      siteId: zoneId,
+      parameters: { source: "ui" },
+    });
+  };
+
   return (
     <PageLayout>
       <PageHeader
         title="Action Center"
         description={`Execution history for automation and manual commands${isLoading ? " (loading...)" : ""}.`}
         actions={
-          <Button>
+          <Button
+            onClick={triggerAction}
+            disabled={createActionMutation.isPending || zones.length === 0}
+          >
             <PlayCircle className="h-4 w-4 mr-2" /> Trigger Action
           </Button>
         }
@@ -198,6 +216,16 @@ export default function ActionsPage() {
                     {ok
                       ? "Execution completed"
                       : "Device timeout, retry recommended"}
+                  </div>
+                  <div className="mt-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={executeActionMutation.isPending}
+                      onClick={() => executeActionMutation.mutate(entry.id)}
+                    >
+                      Execute
+                    </Button>
                   </div>
                 </div>
               );

@@ -10,8 +10,13 @@ echo ""
 
 MQTT_BROKER="localhost"
 MQTT_PORT="1883"
-SITE_ID="test-site"
-ZONE_ID="zone-a"
+SITE_ID="1"
+ZONE_ID="1"
+MODE="publish"
+
+if [ "$1" = "--list" ] || [ "$1" = "list" ]; then
+  MODE="list"
+fi
 
 # Colors
 RED='\033[0;31m'
@@ -30,6 +35,52 @@ log_error() {
 log_info() {
   echo -e "${YELLOW}ℹ $1${NC}"
 }
+
+print_topic_formats() {
+  echo ""
+  echo "════════════════════════════════════════════════════════════════"
+  echo "📘 MQTT Topic List Format"
+  echo "════════════════════════════════════════════════════════════════"
+  echo ""
+  echo "Recommended telemetry topic format:"
+  echo "  greenhouse/{siteId}/telemetry/{sensorType}/{nodeId}"
+  echo ""
+  echo "Examples:"
+  echo "  • greenhouse/$SITE_ID/telemetry/temperature/sensor-001"
+  echo "  • greenhouse/$SITE_ID/telemetry/humidity/sensor-002"
+  echo "  • greenhouse/$SITE_ID/telemetry/soil_moisture/sensor-003"
+  echo "  • greenhouse/$SITE_ID/telemetry/light/sensor-004"
+  echo "  • greenhouse/$SITE_ID/telemetry/co2/sensor-005"
+  echo ""
+  echo "Device status topic format:"
+  echo "  greenhouse/{siteId}/devices/{deviceId}/status"
+  echo ""
+  echo "Payload (telemetry JSON) format:"
+  cat <<EOF
+{
+  "siteId": "$SITE_ID",
+  "zoneId": "$ZONE_ID",
+  "nodeId": "sensor-001",
+  "sensorType": "temperature",
+  "value": 28.5,
+  "unit": "°C",
+  "quality": 100,
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+  echo ""
+  echo "Quick publish command:"
+  echo "  mosquitto_pub -h $MQTT_BROKER -p $MQTT_PORT \\
+    -t \"greenhouse/$SITE_ID/telemetry/temperature/sensor-001\" \\
+    -m '{\"siteId\":\"$SITE_ID\",\"zoneId\":\"$ZONE_ID\",\"nodeId\":\"sensor-001\",\"sensorType\":\"temperature\",\"value\":28.5,\"unit\":\"°C\",\"quality\":100,\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}'"
+  echo ""
+  echo "════════════════════════════════════════════════════════════════"
+}
+
+if [ "$MODE" = "list" ]; then
+  print_topic_formats
+  exit 0
+fi
 
 # Check if mosquitto_pub is installed
 if ! command -v mosquitto_pub &> /dev/null; then
@@ -59,7 +110,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "TEST 2: Temperature Sensor Data"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-TOPIC="greenhouse/$SITE_ID/telemetry/temperature"
+TOPIC="greenhouse/$SITE_ID/telemetry/temperature/sensor-001"
 PAYLOAD='{
   "siteId":"'$SITE_ID'",
   "zoneId":"'$ZONE_ID'",
@@ -81,7 +132,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "TEST 3: Humidity Sensor Data"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-TOPIC="greenhouse/$SITE_ID/telemetry/humidity"
+TOPIC="greenhouse/$SITE_ID/telemetry/humidity/sensor-002"
 PAYLOAD='{
   "siteId":"'$SITE_ID'",
   "zoneId":"'$ZONE_ID'",
@@ -103,7 +154,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "TEST 4: Soil Moisture Sensor Data"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-TOPIC="greenhouse/$SITE_ID/telemetry/soil_moisture"
+TOPIC="greenhouse/$SITE_ID/telemetry/soil_moisture/sensor-003"
 PAYLOAD='{
   "siteId":"'$SITE_ID'",
   "zoneId":"'$ZONE_ID'",
@@ -125,7 +176,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "TEST 5: Power Consumption Data"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-TOPIC="greenhouse/$SITE_ID/telemetry/power"
+TOPIC="greenhouse/$SITE_ID/telemetry/power/pump-001"
 PAYLOAD='{
   "siteId":"'$SITE_ID'",
   "zoneId":"'$ZONE_ID'",
@@ -169,7 +220,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 for i in {1..5}; do
   TEMP=$(echo "scale=1; 25 + $RANDOM % 10" | bc)
-  TOPIC="greenhouse/$SITE_ID/telemetry/temperature"
+  TOPIC="greenhouse/$SITE_ID/telemetry/temperature/sensor-001"
   PAYLOAD='{
     "siteId":"'$SITE_ID'",
     "zoneId":"'$ZONE_ID'",
@@ -195,12 +246,12 @@ echo "📊 MQTT Publishing Summary"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 echo "Published Topics:"
-echo "  • greenhouse/$SITE_ID/telemetry/temperature"
-echo "  • greenhouse/$SITE_ID/telemetry/humidity"
-echo "  • greenhouse/$SITE_ID/telemetry/soil_moisture"
-echo "  • greenhouse/$SITE_ID/telemetry/power"
+echo "  • greenhouse/$SITE_ID/telemetry/temperature/sensor-001"
+echo "  • greenhouse/$SITE_ID/telemetry/humidity/sensor-002"
+echo "  • greenhouse/$SITE_ID/telemetry/soil_moisture/sensor-003"
+echo "  • greenhouse/$SITE_ID/telemetry/power/pump-001"
 echo "  • greenhouse/$SITE_ID/devices/pump-001/status"
-echo "  • greenhouse/$SITE_ID/telemetry/temperature (5 readings stream)"
+echo "  • greenhouse/$SITE_ID/telemetry/temperature/sensor-001 (5 readings stream)"
 echo ""
 echo "Total messages published: 11"
 echo ""

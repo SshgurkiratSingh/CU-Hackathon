@@ -4,6 +4,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const pino = require("pino");
 const mqtt = require("mqtt");
+const { Device, Telemetry } = require("./schemas");
 
 // Services
 const SessionManager = require("./services/SessionManager");
@@ -27,6 +28,7 @@ const kioskRoutes = require("./routes/kiosk");
 const memoryRoutes = require("./routes/memory");
 const devicesRoutes = require("./routes/devices");
 const aiRoutes = require("./routes/ai");
+const zonesRoutes = require("./routes/zones");
 
 // Middleware
 const {
@@ -38,7 +40,32 @@ const {
 
 const logger = pino();
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 2500;
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:3000";
+const isProduction = process.env.NODE_ENV === "production";
+
+const allowedOrigins = CORS_ORIGIN.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const localNetworkOriginPattern =
+  /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/;
+
+const corsOptions = {
+  origin(origin, callback) {
+    // Allow non-browser clients like curl/postman with no origin header
+    if (!origin) return callback(null, true);
+    if (localNetworkOriginPattern.test(origin)) return callback(null, true);
+    // In development, allow any frontend origin (localhost/LAN/IP)
+    if (!isProduction) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
 
 // Database connection
 const connectDatabase = async () => {
@@ -51,6 +78,26 @@ const connectDatabase = async () => {
       maxPoolSize: 10,
     });
     logger.info("MongoDB connected");
+
+    try {
+      const deviceCollection = mongoose.connection.collection("devices");
+      const indexes = await deviceCollection.indexes();
+      const legacyNodeIdIndex = indexes.find(
+        (index) => index.name === "nodeId_1" && index.unique,
+      );
+
+      if (legacyNodeIdIndex) {
+        await deviceCollection.dropIndex("nodeId_1");
+        logger.warn(
+          "Dropped legacy unique index devices.nodeId_1 to allow new device creation",
+        );
+      }
+    } catch (indexError) {
+      logger.warn(
+        { error: indexError.message },
+        "Device index reconciliation skipped",
+      );
+    }
   } catch (error) {
     logger.warn({ error: error.message }, "MongoDB connection failed");
   }
@@ -58,6 +105,69 @@ const connectDatabase = async () => {
 
 // MQTT connection
 let mqttClient;
+
+const parseMqttMessage = (messageBuffer) => {
+  const raw = messageBuffer.toString();
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const numeric = Number(raw);
+    if (!Number.isNaN(numeric)) return { value: numeric };
+    return { value: raw };
+  }
+};
+
+const storeTelemetryFromMqtt = async (topic, payload) => {
+  try {
+    const device = await Device.findOne({ "sensors.mqttTopic": topic }).lean();
+    if (!device) return;
+
+    const sensor = (device.sensors || []).find(
+      (entry) => entry.mqttTopic === topic,
+    );
+    if (!sensor) return;
+
+    const value = Number(payload.value);
+    if (Number.isNaN(value)) return;
+
+    await Telemetry.create({
+      siteId: String(payload.siteId || device.siteId || "default"),
+      deviceId: String(device.deviceId),
+      sensorKey: sensor.key,
+      sensorType: String(payload.sensorType || sensor.sensorType || "custom"),
+      value,
+      unit: String(payload.unit || sensor.unit || ""),
+      topic,
+      timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
+    });
+  } catch (error) {
+    logger.warn(
+      { error: error.message, topic },
+      "Failed to persist MQTT telemetry",
+    );
+  }
+};
+
+const subscribeConfiguredMqttTopics = async () => {
+  if (!mqttClient || !mqttClient.subscribe) return;
+  try {
+    const devices = await Device.find({}).lean();
+    const topics = new Set();
+    devices.forEach((device) => {
+      (device.sensors || []).forEach((sensor) => {
+        if (sensor.mqttTopic) topics.add(sensor.mqttTopic);
+      });
+    });
+
+    topics.forEach((topic) => mqttClient.subscribe(topic));
+    // Fallback wildcard for greenhouse telemetry style topics
+    mqttClient.subscribe("greenhouse/+/telemetry/#");
+    logger.info({ topics: topics.size }, "MQTT topic subscriptions ready");
+  } catch (error) {
+    logger.warn({ error: error.message }, "Failed to subscribe MQTT topics");
+  }
+};
+
 const connectMQTT = () => {
   try {
     const mqttUrl = `${process.env.MQTT_PROTOCOL || "mqtt"}://${process.env.MQTT_HOST || "localhost"}:${process.env.MQTT_PORT || 1883}`;
@@ -70,6 +180,12 @@ const connectMQTT = () => {
 
     mqttClient.on("connect", () => {
       logger.info("MQTT connected");
+      subscribeConfiguredMqttTopics();
+    });
+
+    mqttClient.on("message", async (topic, message) => {
+      const payload = parseMqttMessage(message);
+      await storeTelemetryFromMqtt(topic, payload);
     });
 
     mqttClient.on("error", (error) => {
@@ -101,7 +217,8 @@ const initializeServices = async () => {
 };
 
 // Middleware setup
-app.use(cors());
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(express.json());
 app.use(requestLogger);
 
@@ -138,9 +255,15 @@ const startServer = async () => {
     connectMQTT();
     await initializeServices();
 
+    const optionalAuthMiddleware = (req, res, next) => {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return next();
+      return authMiddleware(sessionManager)(req, res, next);
+    };
+
     // Register routes AFTER services are initialized
     app.use("/api/auth", authRoutes);
-    app.use("/api/telemetry", authMiddleware(sessionManager), telemetryRoutes);
+    app.use("/api/telemetry", optionalAuthMiddleware, telemetryRoutes);
     app.use(
       "/api/rules",
       authMiddleware(sessionManager),
@@ -149,7 +272,7 @@ const startServer = async () => {
     );
     app.use("/api/actions", authMiddleware(sessionManager), actionsRoutes);
     app.use("/api/shadow", authMiddleware(sessionManager), shadowRoutes);
-    app.use("/api/alerts", authMiddleware(sessionManager), alertsRoutes);
+    app.use("/api/alerts", optionalAuthMiddleware, alertsRoutes);
     app.use(
       "/api/settings",
       authMiddleware(sessionManager),
@@ -162,7 +285,8 @@ const startServer = async () => {
       marketplaceRoutes,
     );
     app.use("/api/memory", authMiddleware(sessionManager), memoryRoutes);
-    app.use("/api/devices", authMiddleware(sessionManager), devicesRoutes);
+    app.use("/api/devices", optionalAuthMiddleware, devicesRoutes);
+    app.use("/api/zones", optionalAuthMiddleware, zonesRoutes);
 
     // AI routes with Gemini service injection
     aiRoutes.setGeminiService(geminiService);

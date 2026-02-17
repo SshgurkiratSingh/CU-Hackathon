@@ -8,6 +8,8 @@ set -e
 PROJECT_DIR="/home/gurkirat/Projects/CU-Hackathon"
 LOG_DIR="$PROJECT_DIR/logs"
 ENV_FILE="$PROJECT_DIR/.env"
+DEFAULT_SERVER_PORT="4000"
+SERVER_PORT="$DEFAULT_SERVER_PORT"
 
 # Colors
 RED='\033[0;31m'
@@ -55,6 +57,10 @@ if [ ! -f "$ENV_FILE" ]; then
   log_success ".env file created and configured"
 else
   log_success ".env file already exists"
+fi
+
+if grep -q '^PORT=' "$ENV_FILE"; then
+  SERVER_PORT="$(grep '^PORT=' "$ENV_FILE" | tail -n 1 | cut -d '=' -f2 | tr -d '[:space:]')"
 fi
 
 # Step 2: Check and setup MongoDB
@@ -148,12 +154,12 @@ if [ -f "src/index.js" ]; then
   log_success "Backend code found"
   
   # Check if server is already running
-  if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-    log_success "Backend already running on port 3000"
-    log_info "Access the API at: http://localhost:3000"
+  if lsof -Pi :"$SERVER_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
+    log_success "Backend already running on port $SERVER_PORT"
+    log_info "Access the API at: http://localhost:$SERVER_PORT"
   else
     log_info "Starting backend server..."
-    log_info "Server will run on: http://localhost:3000"
+    log_info "Server will run on: http://localhost:$SERVER_PORT"
     log_info "Logs will be saved to: $LOG_DIR/backend.log"
     
     # Start backend in background
@@ -168,7 +174,7 @@ if [ -f "src/index.js" ]; then
       
       # Test health endpoint
       sleep 2
-      if curl -s http://localhost:3000/health > /dev/null 2>&1; then
+      if curl -s "http://localhost:$SERVER_PORT/health" > /dev/null 2>&1; then
         log_success "Backend health check passed"
       else
         log_info "Health check pending - server still initializing"
@@ -192,19 +198,19 @@ echo "Services Status:"
 pgrep -x "mongod" > /dev/null && echo "  ✓ MongoDB running" || echo "  ✗ MongoDB NOT running"
 pgrep -x "redis-server" > /dev/null && echo "  ✓ Redis running" || echo "  ✗ Redis NOT running"
 netstat -an 2>/dev/null | grep -q ":1883" && echo "  ✓ MQTT broker running" || echo "  ✗ MQTT broker NOT running"
-lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1 && echo "  ✓ Backend running (port 3000)" || echo "  ✗ Backend NOT running"
+lsof -Pi :"$SERVER_PORT" -sTCP:LISTEN -t >/dev/null 2>&1 && echo "  ✓ Backend running (port $SERVER_PORT)" || echo "  ✗ Backend NOT running"
 
 echo ""
 echo "🚀 Quick Start Guide:"
 echo "  1. Test APIs: bash $PROJECT_DIR/test-api.sh"
 echo "  2. Publish MQTT: bash $PROJECT_DIR/publish-mqtt.sh"
 echo "  3. View logs: tail -f $LOG_DIR/backend.log"
-echo "  4. API Docs: http://localhost:3000/api-docs"
-echo "  5. Dashboard: http://localhost:3000/kiosk"
+echo "  4. API Docs: http://localhost:$SERVER_PORT/api-docs"
+echo "  5. Dashboard: http://localhost:$SERVER_PORT/kiosk"
 
 echo ""
 echo "📝 Environment:"
-echo "  API: http://localhost:3000"
+echo "  API: http://localhost:$SERVER_PORT"
 echo "  MongoDB: mongodb://localhost:27017/greenhouse-os"
 echo "  Redis: redis://localhost:6379"
 echo "  MQTT: mqtt://localhost:1883"

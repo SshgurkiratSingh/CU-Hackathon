@@ -8,7 +8,7 @@ import { MockDevice } from "../lib/mock-data";
 
 // --- Fix for Leaflet default icon issues in Webpack/Next.js ---
 const fixLeafletIcons = () => {
-  // @ts-ignore
+  // @ts-expect-error - Leaflet internal prototype method is not typed
   delete L.Icon.Default.prototype._getIconUrl;
 
   L.Icon.Default.mergeOptions({

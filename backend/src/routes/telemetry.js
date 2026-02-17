@@ -49,7 +49,8 @@ router.get("/", async (req, res, next) => {
 // Create new telemetry reading
 router.post("/", async (req, res, next) => {
   try {
-    const { siteId, sensorType, value, unit } = req.body;
+    const { siteId, deviceId, sensorKey, sensorType, value, unit, topic } =
+      req.body;
 
     if (!siteId || !sensorType || value === undefined) {
       return res.status(400).json({
@@ -60,9 +61,12 @@ router.post("/", async (req, res, next) => {
 
     const telemetry = new Telemetry({
       siteId,
+      deviceId,
+      sensorKey,
       sensorType,
       value: parseFloat(value),
       unit: unit || "N/A",
+      topic,
       userId: req.user?.id,
     });
 

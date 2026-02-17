@@ -1,8 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useRules, useZones } from "@/hooks/use-dashboard-data";
+import { useMemo, useState } from "react";
+import {
+  useCreateRule,
+  useRules,
+  useToggleRule,
+  useZones,
+} from "@/hooks/use-dashboard-data";
 import {
   Card,
   CardContent,
@@ -22,15 +26,12 @@ import { Select } from "@/components/ui/select";
 export default function RulesPage() {
   const { data: rules = [], isLoading } = useRules();
   const { data: zones = [] } = useZones();
-  const [zoneFilter, setZoneFilter] = useState("all");
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const zone = params.get("zone");
-    if (zone) {
-      setZoneFilter(zone);
-    }
-  }, []);
+  const createRuleMutation = useCreateRule();
+  const toggleRuleMutation = useToggleRule();
+  const [zoneFilter, setZoneFilter] = useState(() => {
+    if (typeof window === "undefined") return "all";
+    return new URLSearchParams(window.location.search).get("zone") ?? "all";
+  });
 
   const filteredRules = useMemo(() => {
     return rules.filter(
@@ -41,13 +42,31 @@ export default function RulesPage() {
   const activeCount = rules.filter((r) => r.status === "active").length;
   const pausedCount = rules.filter((r) => r.status === "paused").length;
 
+  const createQuickRule = () => {
+    const targetZone = zoneFilter === "all" ? zones[0]?.id : zoneFilter;
+    if (!targetZone) return;
+    createRuleMutation.mutate({
+      name: `Rule ${new Date().toLocaleTimeString()}`,
+      siteId: targetZone,
+      condition: {
+        type: "threshold",
+        value: "temperature > 28",
+        description: "Auto-generated quick rule",
+      },
+      action: "Enable ventilation",
+    });
+  };
+
   return (
     <PageLayout>
       <PageHeader
         title="Rule Builder"
         description={`Configure zone automation conditions and actions${isLoading ? " (loading...)" : ""}.`}
         actions={
-          <Button>
+          <Button
+            onClick={createQuickRule}
+            disabled={createRuleMutation.isPending}
+          >
             <Plus className="h-4 w-4 mr-2" /> New Rule
           </Button>
         }
@@ -136,6 +155,8 @@ export default function RulesPage() {
                       variant={
                         rule.status === "active" ? "secondary" : "default"
                       }
+                      disabled={toggleRuleMutation.isPending}
+                      onClick={() => toggleRuleMutation.mutate(rule.id)}
                     >
                       {rule.status === "active" ? "Pause" : "Activate"}
                     </Button>

@@ -6,12 +6,13 @@
 
 Comprehensive documentation organized by topic:
 
-| Section                                              | Purpose                            |
-| ---------------------------------------------------- | ---------------------------------- |
-| [Project Overview](docs/project/README.md)           | Project description and tech stack |
-| [Setup Guide](docs/setup/SETUP.md)                   | Installation and configuration     |
-| [API Reference](docs/api/API.md)                     | Complete endpoint documentation    |
-| [Development Guide](docs/development/DEVELOPMENT.md) | Development and contribution guide |
+| Section                                               | Purpose                            |
+| ----------------------------------------------------- | ---------------------------------- |
+| [Project Overview](docs/project/README.md)            | Project description and tech stack |
+| [Setup Guide](docs/setup/SETUP.md)                    | Installation and configuration     |
+| [MQTT Upload Guide](docs/setup/MQTT_UPLOAD_README.md) | MQTT topic and payload formats     |
+| [API Reference](docs/api/API.md)                      | Complete endpoint documentation    |
+| [Development Guide](docs/development/DEVELOPMENT.md)  | Development and contribution guide |
 
 ## 🚀 Quick Start
 

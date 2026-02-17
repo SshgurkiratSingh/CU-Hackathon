@@ -17,14 +17,14 @@ import { PageLayout } from "@/components/dashboard/PageLayout";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 
 type AnalyzeResponse = {
-  suggestions?: string[];
-  summary?: string;
+  data?: {
+    analysis?: string;
+  };
 };
 
 type DecideResponse = {
-  rule?: {
-    condition?: string;
-    action?: string;
+  data?: {
+    decision?: string;
   };
 };
 
@@ -42,18 +42,20 @@ export default function AiPage() {
   const analyzeMutation = useMutation({
     mutationFn: async (text: string) => {
       const response = await api.post<AnalyzeResponse>("/ai/analyze", {
-        prompt: text,
+        condition: text,
+        context: "dashboard",
       });
       return response.data;
     },
     onSuccess: (data) => {
-      if (Array.isArray(data?.suggestions) && data.suggestions.length > 0) {
-        setGeneratedSuggestions(data.suggestions.slice(0, 6));
-        return;
-      }
-
-      if (typeof data?.summary === "string" && data.summary.length > 0) {
-        setGeneratedSuggestions([data.summary, ...suggestions.slice(0, 2)]);
+      if (
+        typeof data?.data?.analysis === "string" &&
+        data.data.analysis.length > 0
+      ) {
+        setGeneratedSuggestions([
+          data.data.analysis,
+          ...suggestions.slice(0, 2),
+        ]);
       }
     },
     onError: () => {
@@ -67,14 +69,16 @@ export default function AiPage() {
   const draftRuleMutation = useMutation({
     mutationFn: async (text: string) => {
       const response = await api.post<DecideResponse>("/ai/decide", {
-        prompt: text,
+        condition: text,
+        options: ["irrigation", "ventilation", "lighting"],
+        farm_id: "default",
       });
       return response.data;
     },
     onSuccess: (data) => {
-      if (data?.rule?.condition && data?.rule?.action) {
+      if (data?.data?.decision) {
         setGeneratedSuggestions([
-          `Draft rule: IF ${data.rule.condition} THEN ${data.rule.action}`,
+          `Draft recommendation: ${data.data.decision}`,
           ...generatedSuggestions.slice(0, 2),
         ]);
         return;

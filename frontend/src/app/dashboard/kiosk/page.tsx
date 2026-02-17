@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { mockZones } from "@/lib/mock-data";
+import { useZones } from "@/hooks/use-dashboard-data";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,22 +25,69 @@ function statusClass(status: string) {
 }
 
 export default function KioskPage() {
+  const { data: zones = [] } = useZones();
   const [now, setNow] = useState(new Date());
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const enterFullscreen = async () => {
+    if (typeof document === "undefined") return;
+    if (document.fullscreenElement) return;
+    try {
+      await document.documentElement.requestFullscreen();
+    } catch {
+      // Ignore; user can retry from button.
+    }
+  };
+
+  const exitFullscreen = async () => {
+    if (typeof document === "undefined") return;
+    if (!document.fullscreenElement) return;
+    try {
+      await document.exitFullscreen();
+    } catch {
+      // Ignore exit errors.
+    }
+  };
+
+  const toggleFullscreen = () => {
+    if (isFullscreen) {
+      void exitFullscreen();
+      return;
+    }
+    void enterFullscreen();
+  };
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    handleFullscreenChange();
+
+    void enterFullscreen();
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
   const totals = useMemo(() => {
-    const zoneCount = mockZones.length;
+    const zoneCount = zones.length;
     const avgTemp =
-      mockZones.reduce((acc, z) => acc + z.metrics.temp.value, 0) /
+      zones.reduce((acc, z) => acc + z.metrics.temp.value, 0) /
       (zoneCount || 1);
     const avgHumidity =
-      mockZones.reduce((acc, z) => acc + z.metrics.humidity.value, 0) /
+      zones.reduce((acc, z) => acc + z.metrics.humidity.value, 0) /
       (zoneCount || 1);
-    const totalAlerts = mockZones.reduce((acc, z) => acc + z.alerts, 0);
+    const totalAlerts = zones.reduce((acc, z) => acc + z.alerts, 0);
 
     return {
       zoneCount,
@@ -48,7 +95,7 @@ export default function KioskPage() {
       avgHumidity: avgHumidity.toFixed(0),
       totalAlerts,
     };
-  }, []);
+  }, [zones]);
 
   return (
     <div className="min-h-screen bg-black text-white p-6 md:p-8">
@@ -73,9 +120,15 @@ export default function KioskPage() {
             <Clock3 className="h-4 w-4" />
             {now.toLocaleTimeString()}
           </span>
-          <span className="inline-flex items-center gap-2 rounded-md border border-white/20 bg-white/5 px-3 py-1.5">
-            <Maximize2 className="h-4 w-4" /> Wall Display Mode
-          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={toggleFullscreen}
+            className="inline-flex items-center gap-2 rounded-md border border-white/20 bg-white/5 px-3 py-1.5 text-white hover:text-white hover:bg-white/10"
+          >
+            <Maximize2 className="h-4 w-4" />
+            {isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          </Button>
         </div>
       </header>
 
@@ -121,7 +174,7 @@ export default function KioskPage() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {mockZones.map((zone) => (
+        {zones.map((zone) => (
           <Card key={zone.id} className="border-white/20 bg-white/5 text-white">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-2">

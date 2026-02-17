@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Bell,
   Paintbrush,
@@ -20,6 +21,7 @@ import { Select } from "@/components/ui/select";
 import { PageLayout } from "@/components/dashboard/PageLayout";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useUiPreferences } from "@/components/ui-preferences-provider";
+import { useSettings, useUpdateSetting } from "@/hooks/use-dashboard-data";
 import type {
   AccentPreference,
   BackgroundPreference,
@@ -30,6 +32,16 @@ import type {
 export default function SettingsPage() {
   const { preferences, updatePreferences, resetPreferences } =
     useUiPreferences();
+  const { data: settings = {} } = useSettings();
+  const updateSettingMutation = useUpdateSetting();
+  const [draftValues, setDraftValues] = useState<Record<string, string>>({});
+
+  const draft = (key: string, fallback: number) =>
+    draftValues[key] ?? String(settings[key] ?? fallback);
+
+  const saveSetting = (key: string, value: unknown) => {
+    updateSettingMutation.mutate({ key, value });
+  };
 
   return (
     <PageLayout>
@@ -159,15 +171,36 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <label className="flex items-center justify-between rounded-md border bg-white p-3 text-sm">
               <span>Email alerts enabled</span>
-              <input type="checkbox" defaultChecked className="h-4 w-4" />
+              <input
+                type="checkbox"
+                checked={Boolean(settings["alerts.enabled"] ?? true)}
+                onChange={(e) =>
+                  saveSetting("alerts.enabled", e.target.checked)
+                }
+                className="h-4 w-4"
+              />
             </label>
             <label className="flex items-center justify-between rounded-md border bg-white p-3 text-sm">
               <span>SMS for critical alarms</span>
-              <input type="checkbox" defaultChecked className="h-4 w-4" />
+              <input
+                type="checkbox"
+                checked={Boolean(settings["alerts.smsCritical"] ?? true)}
+                onChange={(e) =>
+                  saveSetting("alerts.smsCritical", e.target.checked)
+                }
+                className="h-4 w-4"
+              />
             </label>
             <label className="flex items-center justify-between rounded-md border bg-white p-3 text-sm">
               <span>Suppress non-critical at night</span>
-              <input type="checkbox" className="h-4 w-4" />
+              <input
+                type="checkbox"
+                checked={Boolean(settings["alerts.suppressAtNight"] ?? false)}
+                onChange={(e) =>
+                  saveSetting("alerts.suppressAtNight", e.target.checked)
+                }
+                className="h-4 w-4"
+              />
             </label>
           </CardContent>
         </Card>
@@ -186,19 +219,64 @@ export default function SettingsPage() {
               <label className="mb-1 block text-sm text-gray-600">
                 Temperature Warning (°C)
               </label>
-              <Input defaultValue={28} type="number" />
+              <Input
+                value={draft("ventilation.maxTemp", 28)}
+                onChange={(e) =>
+                  setDraftValues((prev) => ({
+                    ...prev,
+                    "ventilation.maxTemp": e.target.value,
+                  }))
+                }
+                onBlur={() =>
+                  saveSetting(
+                    "ventilation.maxTemp",
+                    Number(draftValues["ventilation.maxTemp"] ?? 28),
+                  )
+                }
+                type="number"
+              />
             </div>
             <div>
               <label className="mb-1 block text-sm text-gray-600">
                 Humidity Warning (%)
               </label>
-              <Input defaultValue={65} type="number" />
+              <Input
+                value={draft("irrigation.minTemp", 18)}
+                onChange={(e) =>
+                  setDraftValues((prev) => ({
+                    ...prev,
+                    "irrigation.minTemp": e.target.value,
+                  }))
+                }
+                onBlur={() =>
+                  saveSetting(
+                    "irrigation.minTemp",
+                    Number(draftValues["irrigation.minTemp"] ?? 18),
+                  )
+                }
+                type="number"
+              />
             </div>
             <div>
               <label className="mb-1 block text-sm text-gray-600">
                 CO2 Warning (ppm)
               </label>
-              <Input defaultValue={1200} type="number" />
+              <Input
+                value={draft("heating.minTemp", 15)}
+                onChange={(e) =>
+                  setDraftValues((prev) => ({
+                    ...prev,
+                    "heating.minTemp": e.target.value,
+                  }))
+                }
+                onBlur={() =>
+                  saveSetting(
+                    "heating.minTemp",
+                    Number(draftValues["heating.minTemp"] ?? 15),
+                  )
+                }
+                type="number"
+              />
             </div>
           </CardContent>
         </Card>
@@ -215,19 +293,58 @@ export default function SettingsPage() {
           <CardContent className="grid gap-3 md:grid-cols-2">
             <label className="flex items-center justify-between rounded-md border bg-white p-3 text-sm">
               <span>Require confirmation for emergency stop</span>
-              <input type="checkbox" defaultChecked className="h-4 w-4" />
+              <input
+                type="checkbox"
+                checked={Boolean(
+                  settings["safety.confirmEmergencyStop"] ?? true,
+                )}
+                onChange={(e) =>
+                  saveSetting("safety.confirmEmergencyStop", e.target.checked)
+                }
+                className="h-4 w-4"
+              />
             </label>
             <label className="flex items-center justify-between rounded-md border bg-white p-3 text-sm">
               <span>Auto-disable irrigation on leak alert</span>
-              <input type="checkbox" defaultChecked className="h-4 w-4" />
+              <input
+                type="checkbox"
+                checked={Boolean(
+                  settings["safety.disableIrrigationOnLeak"] ?? true,
+                )}
+                onChange={(e) =>
+                  saveSetting(
+                    "safety.disableIrrigationOnLeak",
+                    e.target.checked,
+                  )
+                }
+                className="h-4 w-4"
+              />
             </label>
             <label className="flex items-center justify-between rounded-md border bg-white p-3 text-sm">
               <span>Fail-safe ventilation on controller loss</span>
-              <input type="checkbox" defaultChecked className="h-4 w-4" />
+              <input
+                type="checkbox"
+                checked={Boolean(
+                  settings["safety.failSafeVentilation"] ?? true,
+                )}
+                onChange={(e) =>
+                  saveSetting("safety.failSafeVentilation", e.target.checked)
+                }
+                className="h-4 w-4"
+              />
             </label>
             <label className="flex items-center justify-between rounded-md border bg-white p-3 text-sm">
               <span>Allow remote override outside schedule</span>
-              <input type="checkbox" className="h-4 w-4" />
+              <input
+                type="checkbox"
+                checked={Boolean(
+                  settings["safety.allowRemoteOverride"] ?? false,
+                )}
+                onChange={(e) =>
+                  saveSetting("safety.allowRemoteOverride", e.target.checked)
+                }
+                className="h-4 w-4"
+              />
             </label>
           </CardContent>
         </Card>

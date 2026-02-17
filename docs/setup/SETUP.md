@@ -153,5 +153,6 @@ kill -9 <PID>
 ## Next Steps
 
 - See [API Documentation](../api/API.md) for endpoints
+- See [MQTT Upload Guide](./MQTT_UPLOAD_README.md) for MQTT topic and payload formats
 - Check [Development Guide](../development/DEVELOPMENT.md) for development
 - Review [Backend README](../../backend/README.md) for technical details

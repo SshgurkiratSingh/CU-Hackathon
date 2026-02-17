@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useMemory, useZones } from "@/hooks/use-dashboard-data";
+import {
+  useCreateMemoryEntry,
+  useMemory,
+  useZones,
+} from "@/hooks/use-dashboard-data";
 import {
   Card,
   CardContent,
@@ -15,6 +19,16 @@ import { ArrowLeft, Database, History, TrendingUp } from "lucide-react";
 export default function MemoryPage() {
   const { data: memoryItems = [], isLoading } = useMemory();
   const { data: zones = [] } = useZones();
+  const createMemoryMutation = useCreateMemoryEntry();
+
+  const generateSummary = () => {
+    createMemoryMutation.mutate({
+      ruleId: zones[0]?.id,
+      thinking: `Operator snapshot generated at ${new Date().toLocaleString()}`,
+      decision: "review",
+      confidence: 0.8,
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50/50 p-6 md:p-8 space-y-6">
@@ -35,7 +49,12 @@ export default function MemoryPage() {
             </p>
           </div>
         </div>
-        <Button>Generate New Summary</Button>
+        <Button
+          onClick={generateSummary}
+          disabled={createMemoryMutation.isPending}
+        >
+          Generate New Summary
+        </Button>
       </header>
 
       <div className="grid gap-4 md:grid-cols-3">

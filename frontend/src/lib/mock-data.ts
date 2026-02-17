@@ -18,7 +18,7 @@ export type MockDeviceStatus = "normal" | "warning" | "critical" | "offline";
 export interface MockDevice {
   id: string;
   name: string;
-  type: "sensor" | "actuator" | "camera" | "controller";
+  type: "sensor" | "actuator" | "hybrid" | "combined" | "camera" | "controller";
   status: MockDeviceStatus;
   lat: number;
   lng: number;
@@ -451,6 +451,7 @@ export const mockMarketplacePacks: MarketplacePack[] = [
 const MOCK_DEVICE_TYPES: Array<MockDevice["type"]> = [
   "sensor",
   "actuator",
+  "hybrid",
   "camera",
   "controller",
 ];
