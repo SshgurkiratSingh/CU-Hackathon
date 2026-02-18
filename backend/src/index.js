@@ -4,7 +4,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const pino = require("pino");
 const mqtt = require("mqtt");
-const { Device, Telemetry } = require("./schemas");
+const { Device } = require("./schemas");
 
 // Services
 const SessionManager = require("./services/SessionManager");
@@ -14,6 +14,8 @@ const MarketplaceService = require("./services/MarketplaceService");
 const KioskService = require("./services/KioskService");
 const ActionDispatcher = require("./services/ActionDispatcher");
 const MemoryService = require("./services/MemoryService");
+const TelemetryIngestionService = require("./services/TelemetryIngestionService");
+const EventAutomationService = require("./services/EventAutomationService");
 
 // Routes
 const authRoutes = require("./routes/auth");
@@ -29,6 +31,7 @@ const memoryRoutes = require("./routes/memory");
 const devicesRoutes = require("./routes/devices");
 const aiRoutes = require("./routes/ai");
 const zonesRoutes = require("./routes/zones");
+const importantActionsRoutes = require("./routes/important-actions");
 
 // Middleware
 const {
@@ -117,32 +120,71 @@ const parseMqttMessage = (messageBuffer) => {
   }
 };
 
-const storeTelemetryFromMqtt = async (topic, payload) => {
+const storeTelemetryFromMqtt = async (topic, payload, receivedAt) => {
   try {
     const device = await Device.findOne({ "sensors.mqttTopic": topic }).lean();
-    if (!device) return;
+    if (!device) {
+      logger.debug({ topic, payload }, "No device found for MQTT topic");
+      return;
+    }
 
     const sensor = (device.sensors || []).find(
       (entry) => entry.mqttTopic === topic,
     );
-    if (!sensor) return;
+    if (!sensor) {
+      logger.warn(
+        { topic, deviceId: device.deviceId },
+        "Sensor not found for topic",
+      );
+      return;
+    }
 
     const value = Number(payload.value);
-    if (Number.isNaN(value)) return;
+    if (Number.isNaN(value)) {
+      logger.warn({ topic, payload }, "Invalid numeric value in MQTT payload");
+      return;
+    }
 
-    await Telemetry.create({
-      siteId: String(payload.siteId || device.siteId || "default"),
-      deviceId: String(device.deviceId),
-      sensorKey: sensor.key,
-      sensorType: String(payload.sensorType || sensor.sensorType || "custom"),
-      value,
-      unit: String(payload.unit || sensor.unit || ""),
-      topic,
-      timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
-    });
+    const serverTimestamp = receivedAt || new Date();
+    const { telemetry: telemetryDoc, intervalStart } =
+      await telemetryIngestionService.record(
+        {
+          siteId: String(payload.siteId || device.siteId || "default"),
+          deviceId: String(device.deviceId),
+          sensorKey: sensor.key,
+          sensorType: String(
+            payload.sensorType || sensor.sensorType || "custom",
+          ),
+          value,
+          unit: String(payload.unit || sensor.unit || ""),
+          topic,
+        },
+        serverTimestamp,
+      );
+
+    if (eventAutomationService) {
+      await eventAutomationService.handleTelemetryEvent(
+        telemetryDoc.toObject ? telemetryDoc.toObject() : telemetryDoc,
+      );
+    }
+
+    logger.info(
+      {
+        topic,
+        deviceId: device.deviceId,
+        sensorKey: sensor.key,
+        sensorType: sensor.sensorType,
+        value,
+        unit: sensor.unit,
+        telemetryId: telemetryDoc._id,
+        timestamp: serverTimestamp.toISOString(),
+        intervalStart: intervalStart.toISOString(),
+      },
+      "MQTT telemetry stored successfully",
+    );
   } catch (error) {
-    logger.warn(
-      { error: error.message, topic },
+    logger.error(
+      { error: error.message, stack: error.stack, topic, payload },
       "Failed to persist MQTT telemetry",
     );
   }
@@ -151,18 +193,8 @@ const storeTelemetryFromMqtt = async (topic, payload) => {
 const subscribeConfiguredMqttTopics = async () => {
   if (!mqttClient || !mqttClient.subscribe) return;
   try {
-    const devices = await Device.find({}).lean();
-    const topics = new Set();
-    devices.forEach((device) => {
-      (device.sensors || []).forEach((sensor) => {
-        if (sensor.mqttTopic) topics.add(sensor.mqttTopic);
-      });
-    });
-
-    topics.forEach((topic) => mqttClient.subscribe(topic));
-    // Fallback wildcard for greenhouse telemetry style topics
-    mqttClient.subscribe("greenhouse/+/telemetry/#");
-    logger.info({ topics: topics.size }, "MQTT topic subscriptions ready");
+    mqttClient.subscribe("#");
+    logger.info("MQTT subscribed to all topics (#)");
   } catch (error) {
     logger.warn({ error: error.message }, "Failed to subscribe MQTT topics");
   }
@@ -184,8 +216,18 @@ const connectMQTT = () => {
     });
 
     mqttClient.on("message", async (topic, message) => {
+      const receivedAt = new Date();
       const payload = parseMqttMessage(message);
-      await storeTelemetryFromMqtt(topic, payload);
+      logger.info(
+        {
+          topic,
+          payload,
+          messageSize: message.length,
+          receivedAt: receivedAt.toISOString(),
+        },
+        "MQTT message received",
+      );
+      await storeTelemetryFromMqtt(topic, payload, receivedAt);
     });
 
     mqttClient.on("error", (error) => {
@@ -204,6 +246,18 @@ let marketplaceService;
 let kioskService;
 let actionDispatcher;
 let memoryService;
+let telemetryIngestionService;
+let eventAutomationService;
+
+const ensureTelemetryIngestionService = () => {
+  if (telemetryIngestionService) return;
+  telemetryIngestionService = new TelemetryIngestionService({
+    logger,
+    intervalMinutes: Number(process.env.TELEMETRY_INTERVAL_MINUTES || 10),
+    retentionHours: Number(process.env.TELEMETRY_RETENTION_HOURS || 48),
+  });
+  telemetryIngestionService.startCleanupTask();
+};
 
 const initializeServices = async () => {
   sessionManager = new SessionManager();
@@ -212,7 +266,13 @@ const initializeServices = async () => {
   kioskService = new KioskService();
   actionDispatcher = new ActionDispatcher(mqttClient || {});
   memoryService = new MemoryService();
+  ensureTelemetryIngestionService();
   logicEngine = new LogicEngine(geminiService, marketplaceService);
+  eventAutomationService = new EventAutomationService({
+    logicEngine,
+    actionDispatcher,
+    logger,
+  });
   logger.info("All services initialized");
 };
 
@@ -231,6 +291,8 @@ app.use((req, res, next) => {
   req.kioskService = kioskService;
   req.actionDispatcher = actionDispatcher;
   req.memoryService = memoryService;
+  req.telemetryIngestionService = telemetryIngestionService;
+  req.eventAutomationService = eventAutomationService;
   next();
 });
 
@@ -252,6 +314,7 @@ app.use((err, req, res, next) => {
 const startServer = async () => {
   try {
     await connectDatabase();
+    ensureTelemetryIngestionService();
     connectMQTT();
     await initializeServices();
 
@@ -287,6 +350,11 @@ const startServer = async () => {
     app.use("/api/memory", authMiddleware(sessionManager), memoryRoutes);
     app.use("/api/devices", optionalAuthMiddleware, devicesRoutes);
     app.use("/api/zones", optionalAuthMiddleware, zonesRoutes);
+    app.use(
+      "/api/important-actions",
+      optionalAuthMiddleware,
+      importantActionsRoutes,
+    );
 
     // AI routes with Gemini service injection
     aiRoutes.setGeminiService(geminiService);
@@ -310,6 +378,9 @@ const startServer = async () => {
 const shutdown = async () => {
   logger.info("Shutting down gracefully");
   try {
+    if (telemetryIngestionService) {
+      telemetryIngestionService.stopCleanupTask();
+    }
     await mongoose.disconnect();
     logger.info("MongoDB disconnected");
     if (mqttClient) {

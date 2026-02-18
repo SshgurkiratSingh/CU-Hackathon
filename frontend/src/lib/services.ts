@@ -4,12 +4,16 @@ import {
 } from "@/lib/mock-data";
 import {
   ActionLog,
+  AssistantCapabilitySet,
+  AssistantQueryResult,
   AlertHistoryItem,
   Alert,
   AutomationRule,
   DeviceSensor,
   DeviceHistoryItem,
   Device,
+  DeviceActuatorOutput,
+  ImportantActionItem,
   MarketplacePack,
   MemoryEntry,
   RuleHistoryItem,
@@ -52,9 +56,25 @@ type BackendDevice = {
     sensorType?: DeviceSensor["sensorType"];
     unit?: string;
     mqttTopic?: string;
+    commandTopic?: string;
+    actuatorType?: DeviceSensor["actuatorType"];
+    actuatorConfig?: DeviceSensor["actuatorConfig"];
     widget?: DeviceSensor["widget"];
     widgetKind?: DeviceSensor["widgetKind"];
     isPrimary?: boolean;
+  }>;
+  actuatorOutputs?: Array<{
+    key?: string;
+    label?: string;
+    outputType?: DeviceActuatorOutput["outputType"];
+    commandTopic?: string;
+    unit?: string;
+    min?: number;
+    max?: number;
+    step?: number;
+    defaultValue?: number;
+    linkedSensorKey?: string;
+    enabled?: boolean;
   }>;
   createdAt?: string;
 };
@@ -76,9 +96,37 @@ type BackendRule = {
   siteId?: string;
   condition?: { type?: string; value?: string; description?: string };
   action?: string;
+  elseAction?: string;
+  eventType?: string;
+  trigger?: {
+    type?: "telemetry" | "alert" | "issue" | "timer" | "manual";
+    customPrompt?: string;
+  };
+  variables?: Array<{
+    name?: string;
+    source?: "telemetry" | "device" | "context" | "constant";
+    key?: string;
+    value?: unknown;
+  }>;
+  timer?: {
+    intervalMinutes?: number;
+    activeWindow?: string;
+    timezone?: string;
+  };
   active?: boolean;
   createdAt?: string;
   updatedAt?: string;
+};
+
+type BackendImportantAction = {
+  _id?: string;
+  siteId?: string;
+  title?: string;
+  message?: string;
+  severity?: "low" | "medium" | "high" | "critical";
+  status?: "open" | "in_progress" | "done";
+  source?: string;
+  createdAt?: string;
 };
 
 type BackendAction = {
@@ -297,9 +345,35 @@ export const dataService = {
               sensorType: (sensor?.sensorType || "custom") as DeviceSensor["sensorType"],
               unit: sensor?.unit || "",
               mqttTopic: String(sensor?.mqttTopic || ""),
+              commandTopic: sensor?.commandTopic
+                ? String(sensor.commandTopic)
+                : undefined,
+              actuatorType: sensor?.actuatorType,
+              actuatorConfig: sensor?.actuatorConfig,
               widget: (sensor?.widget || "gauge") as DeviceSensor["widget"],
               widgetKind: (sensor?.widgetKind || "data") as DeviceSensor["widgetKind"],
               isPrimary: Boolean(sensor?.isPrimary),
+            }))
+        : [],
+      actuatorOutputs: Array.isArray(device.actuatorOutputs)
+        ? device.actuatorOutputs
+            .filter((output) => output?.commandTopic)
+            .map((output, index) => ({
+              key: String(output?.key || `output_${index + 1}`),
+              label: String(output?.label || output?.key || `Output ${index + 1}`),
+              outputType:
+                (output?.outputType || "custom") as DeviceActuatorOutput["outputType"],
+              commandTopic: String(output?.commandTopic || ""),
+              unit: output?.unit || "",
+              min: typeof output?.min === "number" ? output.min : 0,
+              max: typeof output?.max === "number" ? output.max : 100,
+              step: typeof output?.step === "number" ? output.step : 1,
+              defaultValue:
+                typeof output?.defaultValue === "number"
+                  ? output.defaultValue
+                  : 0,
+              linkedSensorKey: output?.linkedSensorKey || "",
+              enabled: output?.enabled !== false,
             }))
         : [],
       meta: { backendId: device._id },
@@ -326,6 +400,24 @@ export const dataService = {
       name: rule.name || "Untitled Rule",
       when: rule.condition?.description || rule.condition?.value || "N/A",
       then: rule.action || "No action",
+      elseThen: rule.elseAction || undefined,
+      eventType: rule.eventType || undefined,
+      triggerType: rule.trigger?.type,
+      variables: Array.isArray(rule.variables)
+        ? rule.variables
+            .filter((v) => v?.name)
+            .map((v) => ({
+              name: String(v?.name),
+              source: (v?.source || "telemetry") as
+                | "telemetry"
+                | "device"
+                | "context"
+                | "constant",
+              key: v?.key,
+              value: v?.value,
+            }))
+        : [],
+      timer: rule.timer,
       status: normalizeRuleStatus(rule.active),
     }));
   },
@@ -448,6 +540,140 @@ export const dataService = {
       }));
   },
 
+  telemetrySensors: async (): Promise<{
+    sensorTypes: string[];
+    topics: string[];
+    sensorKeys: string[];
+  }> => {
+    const response = await api.get<
+      ApiEnvelope<{
+        sensorTypes?: string[];
+        topics?: string[];
+        sensorKeys?: string[];
+      }>
+    >("/telemetry/sensors");
+    const payload = unwrapData(response.data, {
+      sensorTypes: [],
+      topics: [],
+      sensorKeys: [],
+    });
+
+    return {
+      sensorTypes: Array.isArray(payload.sensorTypes) ? payload.sensorTypes : [],
+      topics: Array.isArray(payload.topics) ? payload.topics : [],
+      sensorKeys: Array.isArray(payload.sensorKeys) ? payload.sensorKeys : [],
+    };
+  },
+
+  sensorHistory: async (sensorType: string, siteId?: string, limit = 100): Promise<TopicTelemetryRow[]> => {
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (siteId) query.set("siteId", siteId);
+    const response = await api.get<ApiEnvelope<BackendTelemetry[]>>(
+      `/telemetry/history/${encodeURIComponent(sensorType)}?${query.toString()}`,
+    );
+    const rows = unwrapData<BackendTelemetry[]>(response.data, []);
+    return (Array.isArray(rows) ? rows : []).map((row) => ({
+      id: String(row._id || crypto.randomUUID()),
+      siteId: String(row.siteId || "unknown"),
+      topic: String(row.topic || ""),
+      deviceId: row.deviceId ? String(row.deviceId) : undefined,
+      sensorKey: row.sensorKey ? String(row.sensorKey) : undefined,
+      sensorType: String(row.sensorType),
+      value: Number(row.value ?? 0),
+      unit: row.unit ? String(row.unit) : undefined,
+      timestamp: toIso(row.timestamp),
+    }));
+  },
+
+  importantActions: async (siteId?: string): Promise<ImportantActionItem[]> => {
+    const query = siteId ? `?siteId=${encodeURIComponent(siteId)}` : "";
+    const response = await api.get<ApiEnvelope<BackendImportantAction[]>>(
+      `/important-actions${query}`,
+    );
+    const items = unwrapData<BackendImportantAction[]>(response.data, []);
+
+    return (Array.isArray(items) ? items : []).map((item) => ({
+      id: String(item._id || crypto.randomUUID()),
+      siteId: String(item.siteId || "unknown"),
+      title: String(item.title || "Important action"),
+      message: String(item.message || ""),
+      severity: (item.severity || "medium") as
+        | "low"
+        | "medium"
+        | "high"
+        | "critical",
+      status: (item.status || "open") as "open" | "in_progress" | "done",
+      source: item.source,
+      createdAt: toIso(item.createdAt),
+    }));
+  },
+
+  updateImportantActionStatus: async (
+    id: string,
+    status: "open" | "in_progress" | "done",
+  ) => {
+    const response = await api.patch<ApiEnvelope<BackendImportantAction>>(
+      `/important-actions/${encodeURIComponent(id)}/status`,
+      { status },
+    );
+    return unwrapData(response.data, null);
+  },
+
+  assistantQuery: async (payload: {
+    prompt: string;
+    siteId?: string;
+    capabilities?: AssistantCapabilitySet;
+    createRule?: Record<string, unknown>;
+    createAlert?: Record<string, unknown>;
+    createPlan?: Record<string, unknown>;
+  }): Promise<AssistantQueryResult> => {
+    const response = await api.post<
+      ApiEnvelope<{
+        assistantText?: string;
+        summary?: AssistantQueryResult["summary"];
+        created?: AssistantQueryResult["created"];
+      }>
+    >("/ai/assistant/query", payload);
+
+    const data = unwrapData<{
+      assistantText?: string;
+      summary?: AssistantQueryResult["summary"];
+      created?: AssistantQueryResult["created"];
+    }>(response.data, {});
+    return {
+      assistantText:
+        typeof data.assistantText === "string"
+          ? data.assistantText
+          : "No assistant response available.",
+      summary: data.summary,
+      created: data.created,
+    };
+  },
+
+  createAssistantTrigger: async (payload: {
+    siteId: string;
+    name: string;
+    eventType: string;
+    customPrompt: string;
+    action: string;
+    elseAction?: string;
+  }) => {
+    const response = await api.post<ApiEnvelope<unknown>>(
+      "/ai/assistant/trigger",
+      payload,
+    );
+    return unwrapData(response.data, null);
+  },
+
+  assistantPlans: async (siteId?: string) => {
+    const query = siteId ? `?siteId=${encodeURIComponent(siteId)}` : "";
+    const response = await api.get<ApiEnvelope<unknown[]>>(
+      `/ai/assistant/plans${query}`,
+    );
+    const plans = unwrapData<unknown[]>(response.data, []);
+    return Array.isArray(plans) ? plans : [];
+  },
+
   acknowledgeAlert: async (id: string) => {
     const response = await api.post<ApiEnvelope<BackendAlert>>(`/alerts/${id}/acknowledge`);
     return unwrapData(response.data, null);
@@ -463,6 +689,13 @@ export const dataService = {
     siteId: string;
     condition: { type: string; value: string; description?: string };
     action: string;
+    elseAction?: string;
+    eventType?: string;
+    trigger?: Record<string, unknown>;
+    variables?: Array<Record<string, unknown>>;
+    logic?: Record<string, unknown>;
+    timer?: Record<string, unknown>;
+    notifications?: Record<string, unknown>;
   }) => {
     const response = await api.post<ApiEnvelope<BackendRule>>("/rules", payload);
     return unwrapData(response.data, null);
@@ -475,6 +708,7 @@ export const dataService = {
     siteId: string;
     primarySensorKey?: string;
     sensors?: DeviceSensor[];
+    actuatorOutputs?: DeviceActuatorOutput[];
   }) => {
     const response = await api.post<ApiEnvelope<BackendDevice>>("/devices", payload);
     return unwrapData(response.data, null);
@@ -497,6 +731,7 @@ export const dataService = {
       status?: string;
       primarySensorKey?: string;
       sensors?: DeviceSensor[];
+        actuatorOutputs?: DeviceActuatorOutput[];
       metadata?: Record<string, unknown>;
     },
   ) => {
@@ -546,6 +781,49 @@ export const dataService = {
         };
       }>
     >(`/devices/${encodeURIComponent(id)}/oled/command`, payload);
+    return unwrapData(response.data, null);
+  },
+
+  triggerActuator: async (
+    id: string,
+    sensorKey: string,
+    payload: {
+      command?: "on" | "off" | "toggle" | "set";
+      value?: number;
+      topic?: string;
+      notifyPhone?: boolean;
+    },
+  ) => {
+    const response = await api.post<
+      ApiEnvelope<{
+        deviceId: string;
+        sensorKey: string;
+        topic: string;
+      }>
+    >(`/devices/${encodeURIComponent(id)}/actuators/${encodeURIComponent(sensorKey)}/trigger`, payload);
+    return unwrapData(response.data, null);
+  },
+
+  triggerActuatorOutput: async (
+    id: string,
+    outputKey: string,
+    payload: {
+      command?: "on" | "off" | "toggle" | "set";
+      value?: number;
+      topic?: string;
+      notifyPhone?: boolean;
+    },
+  ) => {
+    const response = await api.post<
+      ApiEnvelope<{
+        deviceId: string;
+        outputKey: string;
+        topic: string;
+      }>
+    >(
+      `/devices/${encodeURIComponent(id)}/outputs/${encodeURIComponent(outputKey)}/trigger`,
+      payload,
+    );
     return unwrapData(response.data, null);
   },
 
@@ -621,6 +899,20 @@ export const dataService = {
     confidence?: number;
   }) => {
     const response = await api.post<ApiEnvelope<BackendThinkingLog>>("/memory/thinking", payload);
+    return unwrapData(response.data, null);
+  },
+
+  deleteDevice: async (id: string) => {
+    const response = await api.delete<ApiEnvelope<{ success: boolean }>>(
+      `/devices/${encodeURIComponent(id)}`,
+    );
+    return unwrapData(response.data, null);
+  },
+
+  deleteRule: async (id: string) => {
+    const response = await api.delete<ApiEnvelope<{ success: boolean }>>(
+      `/rules/${encodeURIComponent(id)}`,
+    );
     return unwrapData(response.data, null);
   },
 };

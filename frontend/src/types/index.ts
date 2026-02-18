@@ -71,6 +71,14 @@ export interface DeviceSensor {
   sensorType: SensorType;
   unit?: string;
   mqttTopic: string;
+  commandTopic?: string;
+  actuatorType?: 'fan' | 'led_pwm' | 'fan_pwm' | 'relay' | 'custom';
+  actuatorConfig?: {
+    min?: number;
+    max?: number;
+    step?: number;
+    defaultValue?: number;
+  };
   widget?:
     | 'gauge'
     | 'line'
@@ -84,6 +92,20 @@ export interface DeviceSensor {
   isPrimary?: boolean;
 }
 
+export interface DeviceActuatorOutput {
+  key: string;
+  label: string;
+  outputType: 'fan' | 'led_pwm' | 'fan_pwm' | 'relay' | 'pump' | 'custom';
+  commandTopic: string;
+  unit?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  defaultValue?: number;
+  linkedSensorKey?: string;
+  enabled?: boolean;
+}
+
 export interface Device {
   id: string;
   zoneId: string;
@@ -93,6 +115,7 @@ export interface Device {
   status: DeviceStatus;
   lastSeen: string;
   sensors?: DeviceSensor[];
+  actuatorOutputs?: DeviceActuatorOutput[];
   primarySensorKey?: string;
   meta?: Record<string, unknown>;
 }
@@ -115,7 +138,60 @@ export interface AutomationRule {
   name: string;
   when: string;
   then: string;
+  elseThen?: string;
+  eventType?: string;
+  triggerType?: "telemetry" | "alert" | "issue" | "timer" | "manual";
+  variables?: Array<{
+    name: string;
+    source: "telemetry" | "device" | "context" | "constant";
+    key?: string;
+    value?: unknown;
+  }>;
+  timer?: {
+    intervalMinutes?: number;
+    activeWindow?: string;
+    timezone?: string;
+  };
   status: RuleStatus;
+}
+
+export interface ImportantActionItem {
+  id: string;
+  siteId: string;
+  title: string;
+  message: string;
+  severity: "low" | "medium" | "high" | "critical";
+  status: "open" | "in_progress" | "done";
+  source?: string;
+  createdAt: string;
+}
+
+export interface AssistantCapabilitySet {
+  useAI?: boolean;
+  accessDevices?: boolean;
+  accessTopics?: boolean;
+  accessTelemetry?: boolean;
+  createRules?: boolean;
+  createPlans?: boolean;
+  createAlerts?: boolean;
+}
+
+export interface AssistantQueryResult {
+  assistantText: string;
+  summary?: {
+    siteId: string;
+    devicesCount: number;
+    topicsCount: number;
+    telemetryRows: number;
+    openAlerts: number;
+    openImportantActions: number;
+    activeRules: number;
+  };
+  created?: {
+    rule?: unknown;
+    alert?: unknown;
+    plan?: unknown;
+  };
 }
 
 export interface ActionLog {

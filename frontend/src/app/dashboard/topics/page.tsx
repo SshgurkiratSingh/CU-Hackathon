@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Radio, Search } from "lucide-react";
+import { ArrowLeft, Radio, Search, Settings2, Download, RefreshCw, Pause, Play } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
 import { useDevices, useRecentTopicTelemetry, useZones } from "@/hooks/use-dashboard-data";
 
 function formatAgo(ts: string) {
@@ -19,12 +20,26 @@ function formatAgo(ts: string) {
 }
 
 export default function TopicTelemetryPage() {
-  const { data: telemetry = [], isLoading } = useRecentTopicTelemetry(400);
+  const [bufferSize, setBufferSize] = useState(400);
+  const { data: telemetry = [], isLoading, refetch } = useRecentTopicTelemetry(bufferSize);
   const { data: devices = [] } = useDevices();
   const { data: zones = [] } = useZones();
 
   const [search, setSearch] = useState("");
   const [zoneFilter, setZoneFilter] = useState("all");
+  const [displayLimit, setDisplayLimit] = useState(50);
+  const [sortBy, setSortBy] = useState<"time" | "value" | "topic">("time");
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState(5);
+  const [showSettings, setShowSettings] = useState(false);
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      refetch?.();
+    }, refreshInterval * 1000);
+    return () => clearInterval(interval);
+  }, [autoRefresh, refreshInterval, refetch]);
 
   const zoneMap = useMemo(() => new Map(zones.map((zone) => [zone.id, zone.name])), [zones]);
 
@@ -73,7 +88,7 @@ export default function TopicTelemetryPage() {
   }, [telemetry, topicDeviceMap]);
 
   const filtered = useMemo(() => {
-    return latestByTopic.filter((row) => {
+    let result = latestByTopic.filter((row) => {
       const matchZone = zoneFilter === "all" || row.zoneId === zoneFilter;
       const q = search.trim().toLowerCase();
       const matchSearch =
@@ -83,12 +98,45 @@ export default function TopicTelemetryPage() {
         row.sensorLabel.toLowerCase().includes(q);
       return matchZone && matchSearch;
     });
-  }, [latestByTopic, search, zoneFilter]);
+
+    result.sort((a, b) => {
+      if (sortBy === "time") return new Date(b.latest.timestamp).getTime() - new Date(a.latest.timestamp).getTime();
+      if (sortBy === "value") return b.latest.value - a.latest.value;
+      return a.topicKey.localeCompare(b.topicKey);
+    });
+
+    return result.slice(0, displayLimit);
+  }, [latestByTopic, search, zoneFilter, displayLimit, sortBy]);
 
   const activeTopics = latestByTopic.length;
   const staleTopics = latestByTopic.filter(
     (row) => Date.now() - new Date(row.latest.timestamp).getTime() > 2 * 60 * 1000,
   ).length;
+
+  const handleExport = () => {
+    const csv = [
+      ["Topic", "Device", "Zone", "Sensor", "Value", "Unit", "Trend", "Delta", "Timestamp"],
+      ...filtered.map(row => [
+        row.topicKey,
+        row.deviceName,
+        zoneMap.get(row.zoneId) || row.zoneId,
+        row.sensorLabel,
+        row.latest.value.toFixed(2),
+        row.latest.unit || "",
+        row.trend,
+        row.delta.toFixed(2),
+        row.latest.timestamp
+      ])
+    ].map(r => r.join(",")).join("\n");
+    
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `topics-${new Date().toISOString()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-screen space-y-6 bg-linear-to-b from-slate-50 to-gray-50/80 p-6 md:p-8">
@@ -99,11 +147,25 @@ export default function TopicTelemetryPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Live Topic Telemetry</h1>
-            <p className="text-xs text-gray-500">Live topic stream with mapped device, zone, and quick insights.</p>
+            <p className="text-xs text-gray-500">Live topic stream with mapped device, zone, and quick insights. Showing {filtered.length} of {activeTopics} topics.</p>
           </div>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-          <Radio className="h-3.5 w-3.5" /> auto-refresh 5s
+        <div className="flex items-center gap-2">
+          <div className="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+            <Radio className="h-3.5 w-3.5" /> {autoRefresh ? `auto-refresh ${refreshInterval}s` : "paused"}
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setShowSettings(!showSettings)}>
+            <Settings2 className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setAutoRefresh(!autoRefresh)}>
+            {autoRefresh ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => refetch?.()} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={filtered.length === 0}>
+            <Download className="h-4 w-4" />
+          </Button>
         </div>
       </header>
 
@@ -116,7 +178,54 @@ export default function TopicTelemetryPage() {
       <Card>
         <CardHeader className="gap-3">
           <CardTitle>Topic Insights</CardTitle>
-          <div className="grid gap-3 md:grid-cols-3">
+          
+          {showSettings && (
+            <div className="rounded-lg border bg-gray-50 p-4 space-y-3">
+              <h4 className="font-medium text-sm">Display Settings</h4>
+              <div className="grid gap-3 md:grid-cols-4">
+                <div>
+                  <label className="text-xs text-gray-600 mb-1 block">Display Limit</label>
+                  <Select value={displayLimit.toString()} onChange={(e) => setDisplayLimit(Number(e.target.value))}>
+                    <option value="10">10 topics</option>
+                    <option value="25">25 topics</option>
+                    <option value="50">50 topics</option>
+                    <option value="100">100 topics</option>
+                    <option value="250">250 topics</option>
+                    <option value="500">500 topics</option>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-600 mb-1 block">Sort By</label>
+                  <Select value={sortBy} onChange={(e) => setSortBy(e.target.value as "time" | "value" | "topic")}>
+                    <option value="time">Latest First</option>
+                    <option value="value">Highest Value</option>
+                    <option value="topic">Topic Name</option>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-600 mb-1 block">Refresh Interval</label>
+                  <Select value={refreshInterval.toString()} onChange={(e) => setRefreshInterval(Number(e.target.value))}>
+                    <option value="3">3 seconds</option>
+                    <option value="5">5 seconds</option>
+                    <option value="10">10 seconds</option>
+                    <option value="30">30 seconds</option>
+                    <option value="60">60 seconds</option>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-600 mb-1 block">Buffer Size</label>
+                  <Select value={bufferSize.toString()} onChange={(e) => setBufferSize(Number(e.target.value))}>
+                    <option value="100">100 records</option>
+                    <option value="200">200 records</option>
+                    <option value="400">400 records</option>
+                    <option value="1000">1000 records</option>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-3 md:grid-cols-4">
             <div className="relative md:col-span-2">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
@@ -136,6 +245,17 @@ export default function TopicTelemetryPage() {
                 <option key={zone.id} value={zone.id}>{zone.name}</option>
               ))}
             </select>
+            <Select
+              value={displayLimit.toString()}
+              onChange={(e) => setDisplayLimit(Number(e.target.value))}
+            >
+              <option value="10">Show 10</option>
+              <option value="25">Show 25</option>
+              <option value="50">Show 50</option>
+              <option value="100">Show 100</option>
+              <option value="250">Show 250</option>
+              <option value="500">Show 500</option>
+            </Select>
           </div>
         </CardHeader>
         <CardContent>

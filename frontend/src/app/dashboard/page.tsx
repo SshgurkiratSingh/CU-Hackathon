@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ZoneCard } from "@/components/dashboard/ZoneCard";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { TopicWidgetCard } from "@/components/dashboard/TopicWidgetCard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import {
   useCreateAction,
   useCreateZone,
   useDevices,
+  useImportantActions,
   useZones,
 } from "@/hooks/use-dashboard-data";
 import { SensorType, Zone, ZoneType } from "@/types";
@@ -44,6 +46,7 @@ function metricForSensorType(
 export default function DashboardPage() {
   const { data: zones = [], isLoading } = useZones();
   const { data: devices = [] } = useDevices();
+  const { data: importantActions = [] } = useImportantActions();
   const createZoneMutation = useCreateZone();
   const createActionMutation = useCreateAction();
   const [showZoneForm, setShowZoneForm] = React.useState(false);
@@ -108,6 +111,9 @@ export default function DashboardPage() {
   const totalAlerts = zones.reduce((acc, z) => acc + z.alerts, 0);
   const criticalZones = zones.filter((z) => z.status === "critical").length;
   const warningZones = zones.filter((z) => z.status === "warning").length;
+  const suspectedProblems = importantActions.filter(
+    (item) => item.source === "suspected_problem_engine",
+  );
 
   const allWidgetCandidates = React.useMemo(() => {
     const zoneById = new Map(zones.map((zone) => [zone.id, zone]));
@@ -364,6 +370,52 @@ export default function DashboardPage() {
         />
       </div>
 
+      <div className="mb-8 grid gap-4 lg:grid-cols-2">
+        <Card className="border-rose-200/70 bg-rose-50/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Important Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {importantActions.slice(0, 4).map((item) => (
+              <div key={item.id} className="rounded-md border bg-white p-2">
+                <p className="text-sm font-medium">{item.title}</p>
+                <p className="text-xs text-gray-600">{item.message}</p>
+              </div>
+            ))}
+            {importantActions.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                No important actions pending.
+              </p>
+            ) : null}
+            <Link
+              href="/dashboard/ai"
+              className="text-xs text-rose-700 hover:underline"
+            >
+              Open assistant queue
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="border-amber-200/70 bg-amber-50/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Suspected Problem Engine</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {suspectedProblems.slice(0, 4).map((item) => (
+              <div key={item.id} className="rounded-md border bg-white p-2">
+                <p className="text-sm font-medium">{item.title}</p>
+                <p className="text-xs text-gray-600">{item.message}</p>
+              </div>
+            ))}
+            {suspectedProblems.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                No suspected problems detected.
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Module Shortcuts */}
       <div className="mb-8">
         <div className="mb-3 flex items-center justify-between">
@@ -459,7 +511,7 @@ export default function DashboardPage() {
               </Button>
             </div>
 
-            <div className="max-h-[60vh] space-y-2 overflow-auto">
+            <div className="max-h-[70vh] space-y-2 overflow-auto">
               {allWidgetCandidates.length > 0 ? (
                 allWidgetCandidates.map((entry) => {
                   const selected = selectedWidgetKeys.includes(entry.key);

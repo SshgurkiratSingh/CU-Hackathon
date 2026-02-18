@@ -1,7 +1,7 @@
 const express = require("express");
 const pino = require("pino");
 const mongoose = require("mongoose");
-const { Device } = require("../schemas");
+const { Device, Action } = require("../schemas");
 const { authMiddleware } = require("../middleware");
 
 const logger = pino();
@@ -41,6 +41,22 @@ const SUPPORTED_WIDGET_TYPES = new Set([
 
 const ACTION_WIDGET_TYPES = new Set(["button", "led"]);
 const SUPPORTED_WIDGET_KINDS = new Set(["data", "action"]);
+const SUPPORTED_ACTUATOR_TYPES = new Set([
+  "fan",
+  "led_pwm",
+  "fan_pwm",
+  "relay",
+  "custom",
+]);
+
+const SUPPORTED_OUTPUT_TYPES = new Set([
+  "fan",
+  "led_pwm",
+  "fan_pwm",
+  "relay",
+  "pump",
+  "custom",
+]);
 
 function normalizeDeviceType(rawType) {
   const normalized = String(rawType || "sensor")
@@ -63,6 +79,13 @@ function normalizeSensors(rawSensors = [], deviceId = "device") {
       const widgetKindRaw = String(sensor.widgetKind || "")
         .trim()
         .toLowerCase();
+      const actuatorType = String(sensor.actuatorType || "custom")
+        .trim()
+        .toLowerCase();
+      const min = Number(sensor?.actuatorConfig?.min ?? 0);
+      const max = Number(sensor?.actuatorConfig?.max ?? 100);
+      const step = Number(sensor?.actuatorConfig?.step ?? 1);
+      const defaultValue = Number(sensor?.actuatorConfig?.defaultValue ?? 0);
       const normalizedWidget = SUPPORTED_WIDGET_TYPES.has(widget)
         ? widget
         : "gauge";
@@ -79,9 +102,54 @@ function normalizeSensors(rawSensors = [], deviceId = "device") {
           : "custom",
         unit: String(sensor.unit || "").trim(),
         mqttTopic: String(sensor.mqttTopic).trim(),
+        commandTopic: String(
+          sensor.commandTopic || sensor.mqttTopic || "",
+        ).trim(),
+        actuatorType: SUPPORTED_ACTUATOR_TYPES.has(actuatorType)
+          ? actuatorType
+          : "custom",
+        actuatorConfig: {
+          min: Number.isFinite(min) ? min : 0,
+          max: Number.isFinite(max) ? max : 100,
+          step: Number.isFinite(step) && step > 0 ? step : 1,
+          defaultValue: Number.isFinite(defaultValue) ? defaultValue : 0,
+        },
         widget: normalizedWidget,
         widgetKind,
         isPrimary: Boolean(sensor.isPrimary),
+      };
+    });
+}
+
+function normalizeActuatorOutputs(rawOutputs = []) {
+  return rawOutputs
+    .filter((output) => output && output.commandTopic)
+    .map((output, index) => {
+      const outputType = String(output.outputType || "custom")
+        .trim()
+        .toLowerCase();
+
+      const min = Number(output.min ?? 0);
+      const max = Number(output.max ?? 100);
+      const step = Number(output.step ?? 1);
+      const defaultValue = Number(output.defaultValue ?? 0);
+
+      return {
+        key: String(output.key || `output_${index + 1}`).trim(),
+        label: String(
+          output.label || output.key || `Output ${index + 1}`,
+        ).trim(),
+        outputType: SUPPORTED_OUTPUT_TYPES.has(outputType)
+          ? outputType
+          : "custom",
+        commandTopic: String(output.commandTopic || "").trim(),
+        unit: String(output.unit || "").trim(),
+        min: Number.isFinite(min) ? min : 0,
+        max: Number.isFinite(max) ? max : 100,
+        step: Number.isFinite(step) && step > 0 ? step : 1,
+        defaultValue: Number.isFinite(defaultValue) ? defaultValue : 0,
+        linkedSensorKey: String(output.linkedSensorKey || "").trim(),
+        enabled: output.enabled !== false,
       };
     });
 }
@@ -148,6 +216,7 @@ router.post("/", authMiddleware, async (req, res) => {
       type,
       siteId,
       sensors = [],
+      actuatorOutputs = [],
       primarySensorKey,
       metadata,
     } = req.body;
@@ -161,11 +230,29 @@ router.post("/", authMiddleware, async (req, res) => {
         .json({ success: false, error: "deviceId is required" });
     }
 
+    const normalizedType = normalizeDeviceType(type);
     const normalizedSensors = normalizeSensors(sensors, requestedDeviceId);
-    if (normalizedSensors.length === 0) {
+    const normalizedOutputs = normalizeActuatorOutputs(actuatorOutputs);
+
+    const sensorsRequired =
+      normalizedType !== "actuator" && normalizedType !== "controller";
+
+    if (sensorsRequired && normalizedSensors.length === 0) {
       return res.status(400).json({
         success: false,
         error: "At least one sensor with mqttTopic is required",
+      });
+    }
+
+    if (
+      (normalizedType === "actuator" ||
+        normalizedType === "hybrid" ||
+        normalizedType === "combined") &&
+      normalizedOutputs.length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "At least one actuator output with commandTopic is required",
       });
     }
 
@@ -186,13 +273,14 @@ router.post("/", authMiddleware, async (req, res) => {
       const device = {
         deviceId: finalDeviceId,
         name,
-        type: normalizeDeviceType(type),
+        type: normalizedType,
         siteId,
         status: "active",
         sensors: normalizedSensors.map((sensor) => ({
           ...sensor,
           isPrimary: sensor.key === resolvedPrimarySensorKey,
         })),
+        actuatorOutputs: normalizedOutputs,
         primarySensorKey: resolvedPrimarySensorKey,
         metadata: metadata || {},
         createdAt: new Date(),
@@ -227,6 +315,22 @@ router.post("/", authMiddleware, async (req, res) => {
   }
 });
 
+router.delete("/:id", authMiddleware, async (req, res) => {
+  try {
+    const device = await findDeviceByIdentifier(req.params.id);
+    if (!device) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Device not found" });
+    }
+    await device.deleteOne();
+    res.json({ success: true, message: "Device deleted successfully" });
+  } catch (error) {
+    logger.error({ error }, "Failed to delete device");
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const device = await findDeviceByIdentifier(req.params.id);
@@ -246,8 +350,16 @@ router.get("/:id", authMiddleware, async (req, res) => {
 
 router.put("/:id", authMiddleware, async (req, res) => {
   try {
-    const { name, type, siteId, status, sensors, primarySensorKey, metadata } =
-      req.body;
+    const {
+      name,
+      type,
+      siteId,
+      status,
+      sensors,
+      actuatorOutputs,
+      primarySensorKey,
+      metadata,
+    } = req.body;
     const existing = await findDeviceByIdentifier(req.params.id);
     if (!existing) {
       return res
@@ -263,7 +375,10 @@ router.put("/:id", authMiddleware, async (req, res) => {
 
     if (Array.isArray(sensors)) {
       const normalizedSensors = normalizeSensors(sensors, existing.deviceId);
-      if (normalizedSensors.length === 0) {
+      const sensorsRequired =
+        existing.type !== "actuator" && existing.type !== "controller";
+
+      if (sensorsRequired && normalizedSensors.length === 0) {
         return res.status(400).json({
           success: false,
           error: "At least one sensor with mqttTopic is required",
@@ -288,6 +403,22 @@ router.put("/:id", authMiddleware, async (req, res) => {
         ...sensor,
         isPrimary: sensor.key === resolvedPrimary,
       }));
+    }
+
+    if (Array.isArray(actuatorOutputs)) {
+      const normalizedOutputs = normalizeActuatorOutputs(actuatorOutputs);
+      if (
+        (existing.type === "actuator" ||
+          existing.type === "hybrid" ||
+          existing.type === "combined") &&
+        normalizedOutputs.length === 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "At least one actuator output with commandTopic is required",
+        });
+      }
+      existing.actuatorOutputs = normalizedOutputs;
     }
 
     existing.updatedAt = new Date();
@@ -342,6 +473,222 @@ router.patch("/:id/main-sensor", authMiddleware, async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+router.post(
+  "/:id/outputs/:outputKey/trigger",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const { id, outputKey } = req.params;
+      const {
+        command = "toggle",
+        value,
+        topic,
+        notifyPhone = false,
+      } = req.body || {};
+
+      const device = await findDeviceByIdentifier(id);
+      if (!device) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Device not found" });
+      }
+
+      const output = (device.actuatorOutputs || []).find(
+        (entry) => entry.key === outputKey,
+      );
+      if (!output) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Actuator output not found" });
+      }
+
+      const targetTopic = String(topic || output.commandTopic || "").trim();
+      if (!targetTopic) {
+        return res.status(400).json({
+          success: false,
+          error: "No command topic configured for this actuator output",
+        });
+      }
+
+      const payload = {
+        type: "actuator_output_command",
+        command,
+        value: value ?? output.defaultValue ?? 0,
+        siteId: String(device.siteId || "default"),
+        deviceId: String(device.deviceId),
+        outputKey,
+        outputType: output.outputType || "custom",
+        timestamp: new Date().toISOString(),
+      };
+
+      if (req.actionDispatcher?.broadcastUpdate) {
+        await req.actionDispatcher.broadcastUpdate(targetTopic, payload);
+      } else if (req.actionDispatcher?.mqtt?.publish) {
+        req.actionDispatcher.mqtt.publish(targetTopic, JSON.stringify(payload));
+      }
+
+      await Action.create({
+        name: `Manual actuator output ${command}`,
+        type: "actuator_command",
+        siteId: String(device.siteId || "default"),
+        parameters: {
+          topic: targetTopic,
+          command,
+          value: payload.value,
+          outputKey,
+          outputType: output.outputType,
+          targetDeviceId: String(device.deviceId),
+        },
+        status: "completed",
+        executedAt: new Date(),
+        result: { published: true },
+      });
+
+      if (notifyPhone) {
+        const mobileTopic =
+          process.env.MQTT_MOBILE_NOTIFICATION_TOPIC ||
+          "greenhouse/notifications/mobile";
+        const phonePayload = {
+          type: "actuator_output_notification",
+          title: `Actuator output command: ${output.label || outputKey}`,
+          message: `${command}${value !== undefined ? ` (${value})` : ""} sent to ${device.name}`,
+          siteId: device.siteId,
+          deviceId: device.deviceId,
+          outputKey,
+          topic: targetTopic,
+          timestamp: new Date().toISOString(),
+        };
+        if (req.actionDispatcher?.broadcastUpdate) {
+          await req.actionDispatcher.broadcastUpdate(mobileTopic, phonePayload);
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: "Actuator output command published",
+        data: {
+          deviceId: device.deviceId,
+          outputKey,
+          topic: targetTopic,
+          payload,
+        },
+      });
+    } catch (error) {
+      logger.error({ error }, "Failed to trigger actuator output");
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  },
+);
+
+router.post(
+  "/:id/actuators/:sensorKey/trigger",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const { id, sensorKey } = req.params;
+      const {
+        command = "toggle",
+        value,
+        topic,
+        notifyPhone = false,
+      } = req.body || {};
+
+      const device = await findDeviceByIdentifier(id);
+      if (!device) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Device not found" });
+      }
+
+      const sensor = (device.sensors || []).find(
+        (entry) => entry.key === sensorKey,
+      );
+      if (!sensor) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Actuator sensor not found" });
+      }
+
+      const targetTopic = String(
+        topic || sensor.commandTopic || sensor.mqttTopic || "",
+      ).trim();
+      if (!targetTopic) {
+        return res.status(400).json({
+          success: false,
+          error: "No command topic configured for this actuator",
+        });
+      }
+
+      const payload = {
+        type: "actuator_command",
+        command,
+        value: value ?? sensor?.actuatorConfig?.defaultValue ?? 0,
+        siteId: String(device.siteId || "default"),
+        deviceId: String(device.deviceId),
+        sensorKey,
+        actuatorType: sensor.actuatorType || "custom",
+        timestamp: new Date().toISOString(),
+      };
+
+      if (req.actionDispatcher?.broadcastUpdate) {
+        await req.actionDispatcher.broadcastUpdate(targetTopic, payload);
+      } else if (req.actionDispatcher?.mqtt?.publish) {
+        req.actionDispatcher.mqtt.publish(targetTopic, JSON.stringify(payload));
+      }
+
+      await Action.create({
+        name: `Manual actuator ${command}`,
+        type: "actuator_command",
+        siteId: String(device.siteId || "default"),
+        parameters: {
+          topic: targetTopic,
+          command,
+          value: payload.value,
+          sensorKey,
+          targetDeviceId: String(device.deviceId),
+        },
+        status: "completed",
+        executedAt: new Date(),
+        result: { published: true },
+      });
+
+      if (notifyPhone) {
+        const mobileTopic =
+          process.env.MQTT_MOBILE_NOTIFICATION_TOPIC ||
+          "greenhouse/notifications/mobile";
+        const phonePayload = {
+          type: "actuator_notification",
+          title: `Actuator command: ${sensor.label || sensorKey}`,
+          message: `${command}${value !== undefined ? ` (${value})` : ""} sent to ${device.name}`,
+          siteId: device.siteId,
+          deviceId: device.deviceId,
+          sensorKey,
+          topic: targetTopic,
+          timestamp: new Date().toISOString(),
+        };
+
+        if (req.actionDispatcher?.broadcastUpdate) {
+          await req.actionDispatcher.broadcastUpdate(mobileTopic, phonePayload);
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: "Actuator command published",
+        data: {
+          deviceId: device.deviceId,
+          sensorKey,
+          topic: targetTopic,
+          payload,
+        },
+      });
+    } catch (error) {
+      logger.error({ error }, "Failed to trigger actuator");
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  },
+);
 
 router.post(
   "/:id/sensors/:sensorKey/ping",
@@ -439,16 +786,13 @@ router.post(
 router.post("/:id/oled/command", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      topic,
-      rotationSec,
-      brightness,
-      pages,
-    } = req.body || {};
+    const { topic, rotationSec, brightness, pages } = req.body || {};
 
     const device = await findDeviceByIdentifier(id);
     if (!device) {
-      return res.status(404).json({ success: false, error: "Device not found" });
+      return res
+        .status(404)
+        .json({ success: false, error: "Device not found" });
     }
 
     const siteId = String(device.siteId || "default");

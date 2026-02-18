@@ -4,11 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { dataService } from "@/lib/services";
 import {
   ActionLog,
+  AssistantCapabilitySet,
   AlertHistoryItem,
   Alert,
   AutomationRule,
   DeviceHistoryItem,
   Device,
+  DeviceActuatorOutput,
+  ImportantActionItem,
   MarketplacePack,
   MemoryEntry,
   RuleHistoryItem,
@@ -79,6 +82,84 @@ export function useRecentTopicTelemetry(limit = 300) {
     queryKey: ["recent-topic-telemetry", limit],
     queryFn: () => dataService.recentTopicTelemetry(limit),
     refetchInterval: 5000,
+  });
+}
+
+export function useTelemetrySensors() {
+  return useQuery<{
+    sensorTypes: string[];
+    topics: string[];
+    sensorKeys: string[];
+  }>({ queryKey: ["telemetry-sensors"], queryFn: dataService.telemetrySensors });
+}
+
+export function useSensorHistory(sensorType: string, siteId?: string, limit = 100) {
+  return useQuery<TopicTelemetryRow[]>({
+    queryKey: ["sensor-history", sensorType, siteId, limit],
+    queryFn: () => dataService.sensorHistory(sensorType, siteId, limit),
+    enabled: Boolean(sensorType),
+  });
+}
+
+export function useImportantActions(siteId?: string) {
+  return useQuery<ImportantActionItem[]>({
+    queryKey: ["important-actions", siteId || "all"],
+    queryFn: () => dataService.importantActions(siteId),
+    refetchInterval: 10000,
+  });
+}
+
+export function useUpdateImportantActionStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      status,
+    }: {
+      id: string;
+      status: "open" | "in_progress" | "done";
+    }) => dataService.updateImportantActionStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["important-actions"] });
+    },
+  });
+}
+
+export function useAssistantQuery() {
+  return useMutation({
+    mutationFn: (payload: {
+      prompt: string;
+      siteId?: string;
+      capabilities?: AssistantCapabilitySet;
+      createRule?: Record<string, unknown>;
+      createAlert?: Record<string, unknown>;
+      createPlan?: Record<string, unknown>;
+    }) => dataService.assistantQuery(payload),
+  });
+}
+
+export function useAssistantPlans(siteId?: string) {
+  return useQuery<unknown[]>({
+    queryKey: ["assistant-plans", siteId || "all"],
+    queryFn: () => dataService.assistantPlans(siteId),
+  });
+}
+
+export function useCreateAssistantTrigger() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      siteId: string;
+      name: string;
+      eventType: string;
+      customPrompt: string;
+      action: string;
+      elseAction?: string;
+    }) => dataService.createAssistantTrigger(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rules"] });
+      queryClient.invalidateQueries({ queryKey: ["assistant-plans"] });
+    },
   });
 }
 
@@ -163,6 +244,7 @@ export function useUpdateDevice() {
         status?: string;
         primarySensorKey?: string;
         sensors?: Device["sensors"];
+        actuatorOutputs?: DeviceActuatorOutput[];
         metadata?: Record<string, unknown>;
       };
     }) => dataService.updateDevice(id, payload),
@@ -203,6 +285,54 @@ export function useSendDeviceOledCommand() {
         pages?: string[][];
       };
     }) => dataService.sendDeviceOledCommand(id, payload),
+  });
+}
+
+export function useTriggerActuator() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      sensorKey,
+      payload,
+    }: {
+      id: string;
+      sensorKey: string;
+      payload: {
+        command?: "on" | "off" | "toggle" | "set";
+        value?: number;
+        topic?: string;
+        notifyPhone?: boolean;
+      };
+    }) => dataService.triggerActuator(id, sensorKey, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["actions"] });
+      queryClient.invalidateQueries({ queryKey: ["important-actions"] });
+    },
+  });
+}
+
+export function useTriggerActuatorOutput() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      outputKey,
+      payload,
+    }: {
+      id: string;
+      outputKey: string;
+      payload: {
+        command?: "on" | "off" | "toggle" | "set";
+        value?: number;
+        topic?: string;
+        notifyPhone?: boolean;
+      };
+    }) => dataService.triggerActuatorOutput(id, outputKey, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["actions"] });
+      queryClient.invalidateQueries({ queryKey: ["important-actions"] });
+    },
   });
 }
 
@@ -290,6 +420,29 @@ export function useCreateMemoryEntry() {
     mutationFn: dataService.createMemoryEntry,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["memory"] });
+    },
+  });
+}
+
+export function useDeleteDevice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => dataService.deleteDevice(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["devices"] });
+      queryClient.invalidateQueries({ queryKey: ["zones"] });
+      queryClient.invalidateQueries({ queryKey: ["device-history"] });
+    },
+  });
+}
+
+export function useDeleteRule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => dataService.deleteRule(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rules"] });
+      queryClient.invalidateQueries({ queryKey: ["rule-history"] });
     },
   });
 }

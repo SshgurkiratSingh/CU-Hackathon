@@ -8,11 +8,21 @@ const router = express.Router();
 // Get telemetry data with optional filtering
 router.get("/", async (req, res, next) => {
   try {
-    const { siteId, sensorType, startDate, endDate, limit = 100 } = req.query;
+    const {
+      siteId,
+      sensorType,
+      sensorKey,
+      topic,
+      startDate,
+      endDate,
+      limit = 100,
+    } = req.query;
 
     const filter = {};
     if (siteId) filter.siteId = siteId;
     if (sensorType) filter.sensorType = sensorType;
+    if (sensorKey) filter.sensorKey = sensorKey;
+    if (topic) filter.topic = topic;
 
     if (startDate || endDate) {
       filter.timestamp = {};
@@ -46,6 +56,57 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+router.get("/sensors", async (_req, res, next) => {
+  try {
+    const [sensorTypes, topics, sensorKeys] = await Promise.all([
+      Telemetry.distinct("sensorType", {
+        sensorType: { $exists: true, $ne: null },
+      }),
+      Telemetry.distinct("topic", { topic: { $exists: true, $ne: "" } }),
+      Telemetry.distinct("sensorKey", {
+        sensorKey: { $exists: true, $ne: null },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        sensorTypes: sensorTypes.filter(Boolean).sort(),
+        topics: topics.filter(Boolean).sort(),
+        sensorKeys: sensorKeys.filter(Boolean).sort(),
+      },
+    });
+  } catch (error) {
+    logger.error({ error }, "Failed to fetch telemetry sensor discovery data");
+    next(error);
+  }
+});
+
+// Get sensor history
+router.get("/history/:sensorType", async (req, res, next) => {
+  try {
+    const { sensorType } = req.params;
+    const { siteId, limit = 100 } = req.query;
+
+    const filter = { sensorType };
+    if (siteId) filter.siteId = siteId;
+
+    const history = await Telemetry.find(filter)
+      .sort({ timestamp: -1 })
+      .limit(parseInt(limit))
+      .lean();
+
+    res.json({
+      success: true,
+      data: history,
+      count: history.length,
+    });
+  } catch (error) {
+    logger.error({ error }, "Failed to fetch sensor history");
+    next(error);
+  }
+});
+
 // Create new telemetry reading
 router.post("/", async (req, res, next) => {
   try {
@@ -59,7 +120,7 @@ router.post("/", async (req, res, next) => {
       });
     }
 
-    const telemetry = new Telemetry({
+    const telemetryPayload = {
       siteId,
       deviceId,
       sensorKey,
@@ -68,9 +129,22 @@ router.post("/", async (req, res, next) => {
       unit: unit || "N/A",
       topic,
       userId: req.user?.id,
-    });
+    };
 
-    await telemetry.save();
+    const telemetry = req.telemetryIngestionService
+      ? (
+          await req.telemetryIngestionService.record(
+            telemetryPayload,
+            new Date(),
+          )
+        ).telemetry
+      : await Telemetry.create(telemetryPayload);
+
+    if (req.eventAutomationService) {
+      await req.eventAutomationService.handleTelemetryEvent(
+        telemetry.toObject ? telemetry.toObject() : telemetry,
+      );
+    }
 
     // Optionally broadcast to MQTT
     if (req.actionDispatcher) {

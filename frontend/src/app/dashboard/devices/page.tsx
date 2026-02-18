@@ -5,7 +5,13 @@ export const dynamic = "force-dynamic";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Device, DeviceSensor, DeviceStatus, SensorType } from "@/types";
+import {
+  Device,
+  DeviceActuatorOutput,
+  DeviceSensor,
+  DeviceStatus,
+  SensorType,
+} from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +20,12 @@ import {
   useCreateDevice,
   useDevices,
   usePingDeviceSensorTopic,
+  useTriggerActuator,
+  useTriggerActuatorOutput,
   useUpdateDevice,
   useUpdateDevicePrimarySensor,
   useZones,
+  useDeleteDevice,
 } from "@/hooks/use-dashboard-data";
 
 const statusStyles: Record<DeviceStatus, string> = {
@@ -44,6 +53,9 @@ function DeviceManagementPageContent() {
   const updatePrimarySensorMutation = useUpdateDevicePrimarySensor();
   const updateDeviceMutation = useUpdateDevice();
   const pingTopicMutation = usePingDeviceSensorTopic();
+  const triggerActuatorMutation = useTriggerActuator();
+  const triggerActuatorOutputMutation = useTriggerActuatorOutput();
+  const deleteDeviceMutation = useDeleteDevice();
 
   const requestedZoneId = searchParams.get("zone");
   const requestedConfigureId = searchParams.get("configure");
@@ -63,12 +75,14 @@ function DeviceManagementPageContent() {
     siteId: string;
     primarySensorKey: string;
     sensors: DeviceSensor[];
+    actuatorOutputs: DeviceActuatorOutput[];
   }>({
     name: "",
     type: "sensor",
     siteId: "",
     primarySensorKey: "",
     sensors: [],
+    actuatorOutputs: [],
   });
   const filteredDevices = useMemo(() => {
     return devices.filter((device) => {
@@ -118,6 +132,8 @@ function DeviceManagementPageContent() {
     "led",
     "status",
   ];
+  const actuatorTypeOptions: Array<NonNullable<DeviceSensor["actuatorType"]>> =
+    ["fan", "led_pwm", "fan_pwm", "relay", "custom"];
   const dataWidgetOptions: Array<NonNullable<DeviceSensor["widget"]>> = [
     "gauge",
     "graph",
@@ -168,9 +184,9 @@ function DeviceManagementPageContent() {
         : sensor.key || fallbackKey,
     );
     const nodeToken = normalizeTopicSegment(
-      configDeviceId || fallbackKey || `sensor_${Date.now()}`,
+      configDeviceId || fallbackKey || `s${Date.now()}`,
     );
-    return `greenhouse/${zoneToken}/telemetry/${sensorToken}/${nodeToken}`;
+    return `gh/${zoneToken}/${sensorToken}/${nodeToken}`;
   };
 
   const openConfigModal = (device: Device) => {
@@ -181,6 +197,14 @@ function DeviceManagementPageContent() {
       sensorType: (sensor.sensorType || "custom") as SensorType,
       unit: sensor.unit || "",
       mqttTopic: sensor.mqttTopic || "",
+      commandTopic: sensor.commandTopic || sensor.mqttTopic || "",
+      actuatorType: sensor.actuatorType || "custom",
+      actuatorConfig: {
+        min: sensor.actuatorConfig?.min ?? 0,
+        max: sensor.actuatorConfig?.max ?? 100,
+        step: sensor.actuatorConfig?.step ?? 1,
+        defaultValue: sensor.actuatorConfig?.defaultValue ?? 0,
+      },
       widget: sensor.widget || "gauge",
       widgetKind: deriveWidgetKind(sensor),
       isPrimary: Boolean(sensor.isPrimary),
@@ -204,6 +228,19 @@ function DeviceManagementPageContent() {
             device.zoneId,
             sensor.key || `sensor_${index + 1}`,
           ),
+      })),
+      actuatorOutputs: (device.actuatorOutputs || []).map((output, index) => ({
+        key: output.key || `output_${index + 1}`,
+        label: output.label || `Output ${index + 1}`,
+        outputType: output.outputType || "custom",
+        commandTopic: output.commandTopic || "",
+        unit: output.unit || "",
+        min: output.min ?? 0,
+        max: output.max ?? 100,
+        step: output.step ?? 1,
+        defaultValue: output.defaultValue ?? 0,
+        linkedSensorKey: output.linkedSensorKey || "",
+        enabled: output.enabled !== false,
       })),
     });
     setConfigOpen(true);
@@ -295,6 +332,14 @@ function DeviceManagementPageContent() {
               prev.siteId,
               nextKey,
             ),
+            commandTopic: "",
+            actuatorType: "custom",
+            actuatorConfig: {
+              min: 0,
+              max: 100,
+              step: 1,
+              defaultValue: 0,
+            },
             widget: "gauge",
             widgetKind: "data",
             isPrimary: false,
@@ -327,13 +372,52 @@ function DeviceManagementPageContent() {
         key: sensor.key.trim(),
         label: sensor.label.trim() || sensor.key.trim(),
         mqttTopic: sensor.mqttTopic.trim(),
+        commandTopic: String(
+          sensor.commandTopic || sensor.mqttTopic || "",
+        ).trim(),
+        actuatorType: sensor.actuatorType || "custom",
+        actuatorConfig: {
+          min: Number(sensor.actuatorConfig?.min ?? 0),
+          max: Number(sensor.actuatorConfig?.max ?? 100),
+          step: Number(sensor.actuatorConfig?.step ?? 1),
+          defaultValue: Number(sensor.actuatorConfig?.defaultValue ?? 0),
+        },
         widgetKind: deriveWidgetKind(sensor),
         isPrimary: canUsePrimary
           ? sensor.key.trim() === configDraft.primarySensorKey
           : false,
       }));
 
-    if (sanitizedSensors.length === 0) return;
+    const sanitizedOutputs = (configDraft.actuatorOutputs || [])
+      .filter((output) => output.commandTopic.trim())
+      .map((output, index) => ({
+        key: String(output.key || `output_${index + 1}`).trim(),
+        label: String(
+          output.label || output.key || `Output ${index + 1}`,
+        ).trim(),
+        outputType: output.outputType || "custom",
+        commandTopic: String(output.commandTopic || "").trim(),
+        unit: String(output.unit || "").trim(),
+        min: Number(output.min ?? 0),
+        max: Number(output.max ?? 100),
+        step: Number(output.step ?? 1),
+        defaultValue: Number(output.defaultValue ?? 0),
+        linkedSensorKey: String(output.linkedSensorKey || "").trim(),
+        enabled: output.enabled !== false,
+      }));
+
+    const sensorsRequired =
+      configDraft.type !== "actuator" && configDraft.type !== "controller";
+    if (sensorsRequired && sanitizedSensors.length === 0) return;
+
+    if (
+      (configDraft.type === "actuator" ||
+        configDraft.type === "hybrid" ||
+        configDraft.type === "combined") &&
+      sanitizedOutputs.length === 0
+    ) {
+      return;
+    }
 
     updateDeviceMutation.mutate(
       {
@@ -346,6 +430,7 @@ function DeviceManagementPageContent() {
             ? configDraft.primarySensorKey
             : undefined,
           sensors: sanitizedSensors,
+          actuatorOutputs: sanitizedOutputs,
         },
       },
       {
@@ -432,6 +517,7 @@ function DeviceManagementPageContent() {
     return `// Auto-generated from Device Configuration UI
 // Device: ${configDraft.name || configDeviceId || "unknown"}
 // Zone: ${configDraft.siteId || "unknown"}
+// Topic Format: gh/{zone}/{sensor}/{node}
 
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -605,7 +691,7 @@ ${publishWrappers}
           label: "Humidity",
           sensorType: "humidity",
           unit: "%",
-          mqttTopic: `greenhouse/${targetZone}/telemetry/humidity/${stamp}`,
+          mqttTopic: `gh/${targetZone}/humidity/${stamp}`,
           widget: "gauge",
           widgetKind: "data",
           isPrimary: true,
@@ -615,7 +701,7 @@ ${publishWrappers}
           label: "CO2",
           sensorType: "co2",
           unit: "ppm",
-          mqttTopic: `greenhouse/${targetZone}/telemetry/co2/${stamp}`,
+          mqttTopic: `gh/${targetZone}/co2/${stamp}`,
           widget: "line",
           widgetKind: "data",
         },
@@ -624,7 +710,7 @@ ${publishWrappers}
           label: "Light",
           sensorType: "light",
           unit: "lux",
-          mqttTopic: `greenhouse/${targetZone}/telemetry/light/${stamp}`,
+          mqttTopic: `gh/${targetZone}/light/${stamp}`,
           widget: "line",
           widgetKind: "data",
         },
@@ -633,7 +719,7 @@ ${publishWrappers}
           label: "Soil Moisture",
           sensorType: "soil_moisture",
           unit: "%",
-          mqttTopic: `greenhouse/${targetZone}/telemetry/soil_moisture/${stamp}`,
+          mqttTopic: `gh/${targetZone}/soil_moisture/${stamp}`,
           widget: "gauge",
           widgetKind: "data",
         },
@@ -642,7 +728,7 @@ ${publishWrappers}
           label: "Barometer",
           sensorType: "barometer",
           unit: "hPa",
-          mqttTopic: `greenhouse/${targetZone}/telemetry/barometer/${stamp}`,
+          mqttTopic: `gh/${targetZone}/barometer/${stamp}`,
           widget: "number",
           widgetKind: "data",
         },
@@ -651,7 +737,7 @@ ${publishWrappers}
           label: "mmWave Presence",
           sensorType: "mmwave_presence",
           unit: "state",
-          mqttTopic: `greenhouse/${targetZone}/telemetry/mmwave_presence/${stamp}`,
+          mqttTopic: `gh/${targetZone}/mmwave/${stamp}`,
           widget: "status",
           widgetKind: "action",
         },
@@ -670,6 +756,98 @@ ${publishWrappers}
         }
       },
     });
+  };
+
+  const addActuatorNode = () => {
+    const targetZone =
+      zoneFilter === "all"
+        ? zones[0]?.id
+        : zones.some((zone) => zone.id === zoneFilter)
+          ? zoneFilter
+          : zones[0]?.id;
+    if (!targetZone) return;
+    const stamp = Date.now();
+    const deviceId = `act-${stamp}-${Math.random().toString(36).slice(2, 8)}`;
+
+    createDeviceMutation.mutate({
+      deviceId,
+      name: `Actuator Node ${new Date().toLocaleTimeString()}`,
+      type: "actuator",
+      siteId: targetZone,
+      sensors: [],
+      actuatorOutputs: [
+        {
+          key: "fan_pwm_main",
+          label: "Main Fan PWM",
+          outputType: "fan_pwm",
+          commandTopic: `greenhouse/${targetZone}/command/fan_pwm/${deviceId}`,
+          unit: "%",
+          min: 0,
+          max: 100,
+          step: 1,
+          defaultValue: 60,
+          enabled: true,
+        },
+        {
+          key: "led_pwm_main",
+          label: "Main LED PWM",
+          outputType: "led_pwm",
+          commandTopic: `greenhouse/${targetZone}/command/led_pwm/${deviceId}`,
+          unit: "%",
+          min: 0,
+          max: 100,
+          step: 1,
+          defaultValue: 70,
+          enabled: true,
+        },
+      ],
+    });
+  };
+
+  const addOutputRow = () => {
+    setConfigDraft((prev) => {
+      const nextIndex = prev.actuatorOutputs.length + 1;
+      const nextKey = `output_${nextIndex}`;
+      return {
+        ...prev,
+        actuatorOutputs: [
+          ...prev.actuatorOutputs,
+          {
+            key: nextKey,
+            label: `Output ${nextIndex}`,
+            outputType: "custom",
+            commandTopic: `greenhouse/${prev.siteId || "default"}/command/custom/${configDeviceId || "device"}/${nextKey}`,
+            unit: "%",
+            min: 0,
+            max: 100,
+            step: 1,
+            defaultValue: 50,
+            linkedSensorKey: "",
+            enabled: true,
+          },
+        ],
+      };
+    });
+  };
+
+  const updateOutputRow = (
+    index: number,
+    patch: Partial<DeviceActuatorOutput>,
+  ) => {
+    setConfigDraft((prev) => {
+      const outputs = [...prev.actuatorOutputs];
+      const current = outputs[index];
+      if (!current) return prev;
+      outputs[index] = { ...current, ...patch };
+      return { ...prev, actuatorOutputs: outputs };
+    });
+  };
+
+  const removeOutputRow = (index: number) => {
+    setConfigDraft((prev) => ({
+      ...prev,
+      actuatorOutputs: prev.actuatorOutputs.filter((_, idx) => idx !== index),
+    }));
   };
 
   return (
@@ -705,12 +883,21 @@ ${publishWrappers}
             </div>
           </div>
         </div>
-        <Button
-          onClick={addDevice}
-          disabled={createDeviceMutation.isPending || zones.length === 0}
-        >
-          Add Device
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={addActuatorNode}
+            disabled={createDeviceMutation.isPending || zones.length === 0}
+          >
+            Add Actuator Node
+          </Button>
+          <Button
+            onClick={addDevice}
+            disabled={createDeviceMutation.isPending || zones.length === 0}
+          >
+            Add Device
+          </Button>
+        </div>
       </header>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -905,6 +1092,101 @@ ${publishWrappers}
                         </td>
                         <td className="p-3 text-right">
                           <div className="inline-flex gap-2">
+                            {(device.actuatorOutputs || [])
+                              .slice(0, 1)
+                              .map((output) => (
+                                <div
+                                  key={output.key}
+                                  className="inline-flex gap-1"
+                                >
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8"
+                                    onClick={() =>
+                                      triggerActuatorOutputMutation.mutate({
+                                        id: device.id,
+                                        outputKey: output.key,
+                                        payload: {
+                                          command: "on",
+                                          topic: output.commandTopic,
+                                          notifyPhone: true,
+                                        },
+                                      })
+                                    }
+                                  >
+                                    ON
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8"
+                                    onClick={() =>
+                                      triggerActuatorOutputMutation.mutate({
+                                        id: device.id,
+                                        outputKey: output.key,
+                                        payload: {
+                                          command: "off",
+                                          topic: output.commandTopic,
+                                          notifyPhone: true,
+                                        },
+                                      })
+                                    }
+                                  >
+                                    OFF
+                                  </Button>
+                                </div>
+                              ))}
+                            {(device.sensors || [])
+                              .filter(
+                                (sensor) =>
+                                  sensor.widgetKind === "action" ||
+                                  device.type === "actuator" ||
+                                  device.type === "hybrid" ||
+                                  device.type === "combined",
+                              )
+                              .slice(0, 1)
+                              .map((sensor) => (
+                                <div
+                                  key={sensor.key}
+                                  className="inline-flex gap-1"
+                                >
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8"
+                                    onClick={() =>
+                                      triggerActuatorMutation.mutate({
+                                        id: device.id,
+                                        sensorKey: sensor.key,
+                                        payload: {
+                                          command: "on",
+                                          notifyPhone: true,
+                                        },
+                                      })
+                                    }
+                                  >
+                                    ON
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8"
+                                    onClick={() =>
+                                      triggerActuatorMutation.mutate({
+                                        id: device.id,
+                                        sensorKey: sensor.key,
+                                        payload: {
+                                          command: "off",
+                                          notifyPhone: true,
+                                        },
+                                      })
+                                    }
+                                  >
+                                    OFF
+                                  </Button>
+                                </div>
+                              ))}
                             <Button
                               variant="outline"
                               size="sm"
@@ -913,16 +1195,35 @@ ${publishWrappers}
                             >
                               Configure
                             </Button>
-                              <Link href={`/dashboard/devices/oled?device=${encodeURIComponent(device.id)}`}>
-                                <Button variant="outline" size="sm" className="h-8">
-                                  OLED
-                                </Button>
-                              </Link>
+                            <Link
+                              href={`/dashboard/devices/oled?device=${encodeURIComponent(device.id)}`}
+                            >
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8"
+                              >
+                                OLED
+                              </Button>
+                            </Link>
                             <Link href={`/dashboard/zones/${device.zoneId}`}>
                               <Button variant="ghost" size="sm" className="h-8">
                                 Open Zone
                               </Button>
                             </Link>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="h-8"
+                              onClick={() => {
+                                if (confirm(`Delete device "${device.name}"?`)) {
+                                  deleteDeviceMutation.mutate(device.id);
+                                }
+                              }}
+                              disabled={deleteDeviceMutation.isPending}
+                            >
+                              Delete
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -1101,6 +1402,22 @@ ${publishWrappers}
                       placeholder="unit"
                     />
                     <select
+                      value={sensor.actuatorType || "custom"}
+                      onChange={(e) =>
+                        updateSensorRow(index, {
+                          actuatorType: e.target
+                            .value as DeviceSensor["actuatorType"],
+                        })
+                      }
+                      className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs"
+                    >
+                      {actuatorTypeOptions.map((actuatorType) => (
+                        <option key={actuatorType} value={actuatorType}>
+                          {actuatorType}
+                        </option>
+                      ))}
+                    </select>
+                    <select
                       value={deriveWidgetKind(sensor)}
                       onChange={(e) => {
                         const nextKind = e.target
@@ -1162,7 +1479,7 @@ ${publishWrappers}
                     )}
                   </div>
 
-                  <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto_auto_auto]">
+                  <div className="mt-2 grid gap-2 md:grid-cols-[1fr_1fr_auto_auto_auto]">
                     <input
                       value={sensor.mqttTopic}
                       onChange={(e) =>
@@ -1170,6 +1487,14 @@ ${publishWrappers}
                       }
                       className="rounded-md border border-gray-200 px-2 py-1.5 text-xs font-mono"
                       placeholder="MQTT topic"
+                    />
+                    <input
+                      value={sensor.commandTopic || ""}
+                      onChange={(e) =>
+                        updateSensorRow(index, { commandTopic: e.target.value })
+                      }
+                      className="rounded-md border border-gray-200 px-2 py-1.5 text-xs font-mono"
+                      placeholder="Actuator command topic"
                     />
                     <Button
                       size="sm"
@@ -1197,6 +1522,31 @@ ${publishWrappers}
                     </Button>
                     <Button
                       size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        configDeviceId &&
+                        sensor.key &&
+                        triggerActuatorMutation.mutate({
+                          id: configDeviceId,
+                          sensorKey: sensor.key,
+                          payload: {
+                            command: "set",
+                            value: Number(
+                              sensor.actuatorConfig?.defaultValue ?? 50,
+                            ),
+                            topic: sensor.commandTopic || sensor.mqttTopic,
+                            notifyPhone: true,
+                          },
+                        })
+                      }
+                      disabled={
+                        triggerActuatorMutation.isPending || !sensor.key
+                      }
+                    >
+                      Actuate
+                    </Button>
+                    <Button
+                      size="sm"
                       variant="destructive"
                       onClick={() => removeSensorRow(index)}
                       disabled={configDraft.sensors.length <= 1}
@@ -1206,6 +1556,150 @@ ${publishWrappers}
                   </div>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-gray-800">
+                  Actuator Outputs
+                </h4>
+                <Button variant="outline" size="sm" onClick={addOutputRow}>
+                  Add Output
+                </Button>
+              </div>
+              {configDraft.actuatorOutputs.length > 0 ? (
+                configDraft.actuatorOutputs.map((output, index) => (
+                  <div
+                    key={`${output.key}-${index}`}
+                    className="rounded-lg border border-gray-200 p-3"
+                  >
+                    <div className="grid gap-2 md:grid-cols-7">
+                      <input
+                        value={output.key}
+                        onChange={(e) =>
+                          updateOutputRow(index, { key: e.target.value })
+                        }
+                        className="rounded-md border border-gray-200 px-2 py-1.5 text-xs"
+                        placeholder="output key"
+                      />
+                      <input
+                        value={output.label}
+                        onChange={(e) =>
+                          updateOutputRow(index, { label: e.target.value })
+                        }
+                        className="rounded-md border border-gray-200 px-2 py-1.5 text-xs"
+                        placeholder="output label"
+                      />
+                      <select
+                        value={output.outputType}
+                        onChange={(e) =>
+                          updateOutputRow(index, {
+                            outputType: e.target
+                              .value as DeviceActuatorOutput["outputType"],
+                          })
+                        }
+                        className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs"
+                      >
+                        <option value="fan">fan</option>
+                        <option value="fan_pwm">fan_pwm</option>
+                        <option value="led_pwm">led_pwm</option>
+                        <option value="relay">relay</option>
+                        <option value="pump">pump</option>
+                        <option value="custom">custom</option>
+                      </select>
+                      <input
+                        type="number"
+                        value={output.min ?? 0}
+                        onChange={(e) =>
+                          updateOutputRow(index, {
+                            min: Number(e.target.value || 0),
+                          })
+                        }
+                        className="rounded-md border border-gray-200 px-2 py-1.5 text-xs"
+                        placeholder="min"
+                      />
+                      <input
+                        type="number"
+                        value={output.max ?? 100}
+                        onChange={(e) =>
+                          updateOutputRow(index, {
+                            max: Number(e.target.value || 100),
+                          })
+                        }
+                        className="rounded-md border border-gray-200 px-2 py-1.5 text-xs"
+                        placeholder="max"
+                      />
+                      <input
+                        type="number"
+                        value={output.step ?? 1}
+                        onChange={(e) =>
+                          updateOutputRow(index, {
+                            step: Number(e.target.value || 1),
+                          })
+                        }
+                        className="rounded-md border border-gray-200 px-2 py-1.5 text-xs"
+                        placeholder="step"
+                      />
+                      <input
+                        type="number"
+                        value={output.defaultValue ?? 0}
+                        onChange={(e) =>
+                          updateOutputRow(index, {
+                            defaultValue: Number(e.target.value || 0),
+                          })
+                        }
+                        className="rounded-md border border-gray-200 px-2 py-1.5 text-xs"
+                        placeholder="default"
+                      />
+                    </div>
+                    <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto_auto]">
+                      <input
+                        value={output.commandTopic}
+                        onChange={(e) =>
+                          updateOutputRow(index, {
+                            commandTopic: e.target.value,
+                          })
+                        }
+                        className="rounded-md border border-gray-200 px-2 py-1.5 text-xs font-mono"
+                        placeholder="Command topic"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          configDeviceId &&
+                          triggerActuatorOutputMutation.mutate({
+                            id: configDeviceId,
+                            outputKey: output.key,
+                            payload: {
+                              command: "set",
+                              value: Number(output.defaultValue ?? 0),
+                              topic: output.commandTopic,
+                              notifyPhone: true,
+                            },
+                          })
+                        }
+                        disabled={
+                          triggerActuatorOutputMutation.isPending || !output.key
+                        }
+                      >
+                        Test Output
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => removeOutputRow(index)}
+                      >
+                        Delete Output
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-md border border-dashed border-gray-200 p-3 text-xs text-gray-500">
+                  No actuator outputs configured.
+                </div>
+              )}
             </div>
 
             <div className="mt-4 flex items-center justify-between">

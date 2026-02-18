@@ -12,13 +12,40 @@ class ActionDispatcher {
   // Dispatch action to device via MQTT
   async dispatch(action) {
     try {
-      const topic = `greenhouse/actions/${action.siteId}/${action.type}`;
-      const payload = {
-        actionId: action._id || action.id,
-        type: action.type,
-        parameters: action.parameters,
-        timestamp: new Date().toISOString(),
-      };
+      const parameters = action.parameters || {};
+      const defaultTopic = `greenhouse/actions/${action.siteId}/${action.type}`;
+      const topic =
+        action.type === "actuator_command" && parameters.topic
+          ? String(parameters.topic)
+          : action.type === "notification" && parameters.topic
+            ? String(parameters.topic)
+            : defaultTopic;
+      const payload =
+        action.type === "actuator_command"
+          ? {
+              type: "actuator_command",
+              command: parameters.command || "toggle",
+              value: parameters.value,
+              targetDeviceId: parameters.targetDeviceId,
+              sensorKey: parameters.sensorKey,
+              outputKey: parameters.outputKey,
+              timestamp: new Date().toISOString(),
+            }
+          : action.type === "notification"
+            ? {
+                type: "notification",
+                channel: parameters.channel || "mobile",
+                title: parameters.title || "Greenhouse notification",
+                message: parameters.message || parameters.action || "New event",
+                siteId: action.siteId,
+                timestamp: new Date().toISOString(),
+              }
+            : {
+                actionId: action._id || action.id,
+                type: action.type,
+                parameters,
+                timestamp: new Date().toISOString(),
+              };
 
       // Publish to MQTT if connected
       if (this.mqtt && this.mqtt.publish) {

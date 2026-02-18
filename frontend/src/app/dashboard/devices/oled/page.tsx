@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -23,7 +23,7 @@ function parsePages(input: string) {
     .slice(0, 6);
 }
 
-export default function OledCommandPage() {
+function OledCommandPageContent() {
   const params = useSearchParams();
   const { data: devices = [] } = useDevices();
   const oledMutation = useSendDeviceOledCommand();
@@ -154,5 +154,13 @@ export default function OledCommandPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function OledCommandPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen p-6">Loading...</div>}>
+      <OledCommandPageContent />
+    </Suspense>
   );
 }

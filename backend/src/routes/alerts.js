@@ -5,6 +5,8 @@ const { authMiddleware } = require("../middleware");
 
 const logger = pino();
 const router = express.Router();
+const issueTopic =
+  process.env.MQTT_ISSUE_ALERT_TOPIC || "greenhouse/alerts/issues";
 
 router.get("/", authMiddleware, async (req, res, next) => {
   try {
@@ -46,6 +48,18 @@ router.post("/", authMiddleware, async (req, res, next) => {
         .json({ success: false, error: "Invalid severity" });
     const alert = new Alert({ siteId, severity, message });
     await alert.save();
+
+    if (req.actionDispatcher?.broadcastUpdate) {
+      await req.actionDispatcher.broadcastUpdate(issueTopic, {
+        type: "alert_created",
+        siteId,
+        severity,
+        message,
+        alertId: String(alert._id),
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     res.status(201).json({ success: true, data: alert });
   } catch (error) {
     logger.error({ error }, "Failed to create alert");

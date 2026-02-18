@@ -23,6 +23,12 @@ class LogicEngine {
       } else if (rule.condition.type === "time") {
         // Time-based condition
         decision = this.evaluateTimeCondition(rule);
+      } else if (rule.condition.type === "timer") {
+        decision = this.evaluateTimerCondition(rule, telemetry);
+      } else if (rule.condition.type === "event") {
+        decision = this.evaluateEventCondition(rule, telemetry);
+      } else if (rule.condition.type === "logic") {
+        decision = this.evaluateLogicCondition(rule, telemetry);
       }
 
       // Store thinking log
@@ -111,6 +117,145 @@ class LogicEngine {
         decision: false,
         confidence: 0,
         reasoning: "Time evaluation error",
+      };
+    }
+  }
+
+  evaluateTimerCondition(rule, telemetry) {
+    try {
+      const intervalMinutes = Number(rule?.timer?.intervalMinutes || 0);
+      if (intervalMinutes <= 0) {
+        return {
+          decision: false,
+          confidence: 0,
+          reasoning: "Timer interval missing",
+        };
+      }
+
+      const ts = new Date(telemetry?.timestamp || Date.now());
+      const minute = ts.getMinutes();
+      const decision = minute % intervalMinutes === 0;
+
+      return {
+        decision,
+        confidence: 1,
+        reasoning: `Minute ${minute} ${decision ? "matches" : "does not match"} interval ${intervalMinutes}`,
+      };
+    } catch (error) {
+      logger.error({ error }, "Timer condition evaluation failed");
+      return {
+        decision: false,
+        confidence: 0,
+        reasoning: "Timer evaluation error",
+      };
+    }
+  }
+
+  evaluateEventCondition(rule, telemetry) {
+    try {
+      const expectedType = String(
+        rule?.eventType || rule?.trigger?.match?.eventType || "telemetry",
+      );
+      const actualType = String(telemetry?.eventType || "telemetry");
+      const match = rule?.trigger?.match || {};
+
+      const decision =
+        expectedType === actualType &&
+        (!match.sensorType || match.sensorType === telemetry?.sensorType) &&
+        (!match.topic || match.topic === telemetry?.topic) &&
+        (!match.siteId || match.siteId === telemetry?.siteId);
+
+      return {
+        decision,
+        confidence: decision ? 0.98 : 0.4,
+        reasoning: `Event expected=${expectedType}, actual=${actualType}`,
+      };
+    } catch (error) {
+      logger.error({ error }, "Event condition evaluation failed");
+      return {
+        decision: false,
+        confidence: 0,
+        reasoning: "Event evaluation error",
+      };
+    }
+  }
+
+  resolveVariableValue(variable, telemetry, context = {}) {
+    if (!variable) return undefined;
+    if (variable.source === "constant") return variable.value;
+    if (variable.source === "device") {
+      return telemetry?.[variable.key] ?? context?.device?.[variable.key];
+    }
+    if (variable.source === "context") {
+      return context?.[variable.key] ?? telemetry?.[variable.key];
+    }
+    return telemetry?.[variable.key] ?? variable.value;
+  }
+
+  evaluateLogicExpression(node, scope) {
+    if (!node) return false;
+
+    const op = String(node.operator || "").toLowerCase();
+    if (op === "and") {
+      return (node.children || []).every((child) =>
+        this.evaluateLogicExpression(child, scope),
+      );
+    }
+    if (op === "or") {
+      return (node.children || []).some((child) =>
+        this.evaluateLogicExpression(child, scope),
+      );
+    }
+    if (op === "not") {
+      return !this.evaluateLogicExpression(node.left, scope);
+    }
+
+    const left =
+      typeof node.left === "string" && node.left.startsWith("$")
+        ? scope[node.left.slice(1)]
+        : node.left;
+    const right =
+      typeof node.right === "string" && node.right.startsWith("$")
+        ? scope[node.right.slice(1)]
+        : node.right;
+
+    if (op === "gt") return Number(left) > Number(right);
+    if (op === "gte") return Number(left) >= Number(right);
+    if (op === "lt") return Number(left) < Number(right);
+    if (op === "lte") return Number(left) <= Number(right);
+    if (op === "neq") return left !== right;
+    if (op === "eq") return left === right;
+
+    return false;
+  }
+
+  evaluateLogicCondition(rule, telemetry) {
+    try {
+      const variables = Array.isArray(rule?.variables) ? rule.variables : [];
+      const scope = {
+        value: telemetry?.value,
+        sensorType: telemetry?.sensorType,
+        siteId: telemetry?.siteId,
+      };
+
+      variables.forEach((variable) => {
+        scope[variable.name] = this.resolveVariableValue(variable, telemetry, {
+          now: new Date().toISOString(),
+        });
+      });
+
+      const decision = this.evaluateLogicExpression(rule?.logic, scope);
+      return {
+        decision,
+        confidence: decision ? 0.9 : 0.6,
+        reasoning: `Logic evaluated with scope keys: ${Object.keys(scope).join(", ")}`,
+      };
+    } catch (error) {
+      logger.error({ error }, "Logic condition evaluation failed");
+      return {
+        decision: false,
+        confidence: 0,
+        reasoning: "Logic evaluation error",
       };
     }
   }

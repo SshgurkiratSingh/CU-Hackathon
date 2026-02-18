@@ -6,13 +6,17 @@
 
 Comprehensive documentation organized by topic:
 
-| Section                                               | Purpose                            |
-| ----------------------------------------------------- | ---------------------------------- |
-| [Project Overview](docs/project/README.md)            | Project description and tech stack |
-| [Setup Guide](docs/setup/SETUP.md)                    | Installation and configuration     |
-| [MQTT Upload Guide](docs/setup/MQTT_UPLOAD_README.md) | MQTT topic and payload formats     |
-| [API Reference](docs/api/API.md)                      | Complete endpoint documentation    |
-| [Development Guide](docs/development/DEVELOPMENT.md)  | Development and contribution guide |
+| Section                                                | Purpose                            |
+| ------------------------------------------------------ | ---------------------------------- |
+| [Project Overview](docs/project/README.md)             | Project description and tech stack |
+| [Setup Guide](docs/setup/SETUP.md)                     | Installation and configuration     |
+| [MQTT Upload Guide](docs/setup/MQTT_UPLOAD_README.md)  | MQTT topic and payload formats     |
+| [MQTT Quick Reference](MQTT_QUICK_REFERENCE.md)        | Short topic format and examples    |
+| [MQTT Topic Update](MQTT_TOPIC_UPDATE.md)              | New shorter topic format details   |
+| [MQTT Topic Catalog](MQTT_TOPIC_CATALOG_README.md)     | Telemetry/actuator/alert topic map |
+| [MQTT All-Topics Sub](MQTT_ALL_TOPICS_SUBSCRIPTION.md) | Backend subscribes to all topics   |
+| [API Reference](docs/api/API.md)                       | Complete endpoint documentation    |
+| [Development Guide](docs/development/DEVELOPMENT.md)   | Development and contribution guide |
 
 ## 🚀 Quick Start
 

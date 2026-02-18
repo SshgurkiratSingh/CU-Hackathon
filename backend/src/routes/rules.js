@@ -38,7 +38,20 @@ router.post(
   authorize(["admin"]),
   async (req, res, next) => {
     try {
-      const { name, siteId, condition, action, description } = req.body;
+      const {
+        name,
+        siteId,
+        condition,
+        action,
+        elseAction,
+        eventType,
+        trigger,
+        variables,
+        logic,
+        timer,
+        notifications,
+        description,
+      } = req.body;
       if (!name || !siteId || !condition || !action)
         return res
           .status(400)
@@ -48,6 +61,13 @@ router.post(
         siteId,
         condition,
         action,
+        elseAction,
+        eventType,
+        trigger,
+        variables,
+        logic,
+        timer,
+        notifications,
         createdBy: req.user?.id,
         description,
       });
@@ -60,6 +80,32 @@ router.post(
     }
   },
 );
+
+router.post("/:id/simulate", authMiddleware, async (req, res, next) => {
+  try {
+    if (!req.logicEngine) {
+      return res
+        .status(503)
+        .json({ success: false, error: "Logic engine unavailable" });
+    }
+
+    const rule = await Rule.findById(req.params.id).lean();
+    if (!rule) {
+      return res.status(404).json({ success: false, error: "Rule not found" });
+    }
+
+    const telemetry = req.body?.telemetry || {};
+    const decision = await req.logicEngine.evaluateRule(rule, telemetry);
+
+    res.json({
+      success: true,
+      data: { ruleId: rule._id, telemetry, decision },
+    });
+  } catch (error) {
+    logger.error({ error }, "Failed to simulate rule");
+    next(error);
+  }
+});
 
 router.put(
   "/:id",
