@@ -6,16 +6,8 @@ import {
   Leaf,
   Thermometer,
 } from "lucide-react";
-import { mockZones } from "@/lib/mock-data";
 
 export default function Home() {
-  const zoneCount = mockZones.length;
-  const criticalCount = mockZones.filter((z) => z.status === "critical").length;
-  const warningCount = mockZones.filter((z) => z.status === "warning").length;
-  const avgTemp =
-    mockZones.reduce((acc, z) => acc + z.metrics.temp.value, 0) /
-    (zoneCount || 1);
-
   return (
     <main className="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-sky-50">
       <section className="mx-auto max-w-6xl px-6 py-14 md:py-20">
@@ -52,46 +44,6 @@ export default function Home() {
           >
             Open Simulator
           </Link>
-        </div>
-
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border bg-white p-5 shadow-sm">
-            <div className="mb-2 inline-flex rounded-lg bg-emerald-100 p-2 text-emerald-700">
-              <Leaf className="h-4 w-4" />
-            </div>
-            <p className="text-sm text-gray-500">Active Zones</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">{zoneCount}</p>
-          </div>
-
-          <div className="rounded-xl border bg-white p-5 shadow-sm">
-            <div className="mb-2 inline-flex rounded-lg bg-blue-100 p-2 text-blue-700">
-              <Thermometer className="h-4 w-4" />
-            </div>
-            <p className="text-sm text-gray-500">Average Temperature</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">
-              {avgTemp.toFixed(1)}°C
-            </p>
-          </div>
-
-          <div className="rounded-xl border bg-white p-5 shadow-sm">
-            <div className="mb-2 inline-flex rounded-lg bg-amber-100 p-2 text-amber-700">
-              <AlertTriangle className="h-4 w-4" />
-            </div>
-            <p className="text-sm text-gray-500">Warning Zones</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">
-              {warningCount}
-            </p>
-          </div>
-
-          <div className="rounded-xl border bg-white p-5 shadow-sm">
-            <div className="mb-2 inline-flex rounded-lg bg-red-100 p-2 text-red-700">
-              <Activity className="h-4 w-4" />
-            </div>
-            <p className="text-sm text-gray-500">Critical Zones</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">
-              {criticalCount}
-            </p>
-          </div>
         </div>
       </section>
     </main>

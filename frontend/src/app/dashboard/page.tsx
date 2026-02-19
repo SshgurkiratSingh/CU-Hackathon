@@ -23,6 +23,18 @@ import {
   Workflow,
 } from "lucide-react";
 import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
   useCreateAction,
   useCreateZone,
   useDevices,
@@ -114,6 +126,27 @@ export default function DashboardPage() {
   const suspectedProblems = importantActions.filter(
     (item) => item.source === "suspected_problem_engine",
   );
+
+  const zoneHealthData = React.useMemo(() => {
+    const critical = zones.filter((zone) => zone.status === "critical").length;
+    const warning = zones.filter((zone) => zone.status === "warning").length;
+    const healthy = zones.filter((zone) => zone.status === "optimal").length;
+    const offline = zones.filter((zone) => zone.status === "offline").length;
+    return [
+      { name: "Healthy", value: healthy, color: "#16a34a" },
+      { name: "Warning", value: warning, color: "#d97706" },
+      { name: "Critical", value: critical, color: "#dc2626" },
+      { name: "Offline", value: offline, color: "#64748b" },
+    ].filter((entry) => entry.value > 0);
+  }, [zones]);
+
+  const zoneClimateData = React.useMemo(() => {
+    return zones.slice(0, 8).map((zone) => ({
+      zone: zone.name,
+      temp: Number(zone.metrics.temp.value || 0),
+      humidity: Number(zone.metrics.humidity.value || 0),
+    }));
+  }, [zones]);
 
   const allWidgetCandidates = React.useMemo(() => {
     const zoneById = new Map(zones.map((zone) => [zone.id, zone]));
@@ -368,6 +401,64 @@ export default function DashboardPage() {
           trend={totalAlerts > 0 ? "up" : "stable"}
           className="border-rose-200/70 bg-linear-to-br from-rose-50/70 to-white dark:border-rose-900/70 dark:from-rose-950/40 dark:to-slate-900"
         />
+      </div>
+
+      <div className="mb-8 grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Zone Health Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72 w-full">
+              {zoneHealthData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={zoneHealthData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={90}
+                      label
+                    >
+                      {zoneHealthData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-gray-500">No zone health data.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Zone Climate Snapshot</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72 w-full">
+              {zoneClimateData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={zoneClimateData} margin={{ left: 8, right: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="zone" fontSize={11} tickLine={false} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="temp" fill="#2563eb" radius={[5, 5, 0, 0]} />
+                    <Bar dataKey="humidity" fill="#06b6d4" radius={[5, 5, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-gray-500">No climate data available.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="mb-8 grid gap-4 lg:grid-cols-2">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { WS_URL } from '@/lib/server-config';
+import { WS_URL } from '@/config/api.config';
 
 type WebSocketStatus = 'CONNECTING' | 'OPEN' | 'CLOSING' | 'CLOSED';
 

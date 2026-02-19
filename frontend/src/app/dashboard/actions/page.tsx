@@ -27,6 +27,18 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { HistoryListCard } from "@/components/dashboard/HistoryListCard";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 export default function ActionsPage() {
   const { data: actions = [], isLoading } = useActions();
@@ -74,6 +86,30 @@ export default function ActionsPage() {
     (entry) => entry.source !== "manual",
   ).length;
 
+  const actionOutcomeData = useMemo(
+    () => [
+      { name: "Success", value: successCount, color: "#16a34a" },
+      { name: "Failed", value: failedCount, color: "#dc2626" },
+      {
+        name: "Manual",
+        value: actions.length - automationCount,
+        color: "#2563eb",
+      },
+      { name: "Automation", value: automationCount, color: "#7c3aed" },
+    ].filter((item) => item.value > 0),
+    [successCount, failedCount, actions.length, automationCount],
+  );
+
+  const actionsByZone = useMemo(() => {
+    return zones
+      .map((zone) => ({
+        zone: zone.name,
+        total: actions.filter((entry) => entry.zoneId === zone.id).length,
+      }))
+      .filter((entry) => entry.total > 0)
+      .slice(0, 8);
+  }, [zones, actions]);
+
   const triggerAction = () => {
     const zoneId = zoneFilter === "all" ? zones[0]?.id : zoneFilter;
     if (!zoneId) return;
@@ -112,6 +148,73 @@ export default function ActionsPage() {
           value={failedCount}
           accentClassName="border-red-200/70 bg-red-50/40"
         />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Execution Mix</CardTitle>
+            <CardDescription>
+              Success/failure and manual/automation composition.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72 w-full">
+              {actionOutcomeData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={actionOutcomeData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={95}
+                      label
+                    >
+                      {actionOutcomeData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No action analytics available.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Actions by Zone</CardTitle>
+            <CardDescription>
+              Most active zones by execution count.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72 w-full">
+              {actionsByZone.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={actionsByZone} margin={{ left: 8, right: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="zone" fontSize={11} tickLine={false} />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="total" fill="#2563eb" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No zone-level activity yet.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>

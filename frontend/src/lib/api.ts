@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/lib/server-config";
+import { API_BASE_URL } from "@/config/api.config";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 

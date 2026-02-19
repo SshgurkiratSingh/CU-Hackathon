@@ -14,12 +14,17 @@ import {
 import {
   LineChart,
   Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 import { PageLayout } from "@/components/dashboard/PageLayout";
 import { PageHeader } from "@/components/dashboard/PageHeader";
@@ -55,6 +60,40 @@ export default function TelemetryPage() {
     );
   }, [history]);
 
+  const sensorHistoryChartData = useMemo(() => {
+    return [...sensorHistory]
+      .reverse()
+      .map((row) => ({
+        time: new Date(row.timestamp).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        value: Number(row.value ?? 0),
+        zone: zones.find((z) => z.id === row.siteId)?.name || row.siteId,
+      }));
+  }, [sensorHistory, zones]);
+
+  const signalCoverageData = useMemo(() => {
+    const coverage = {
+      temperature: 0,
+      humidity: 0,
+      co2: 0,
+      light: 0,
+    };
+    for (const point of history) {
+      if (typeof point.temp === "number") coverage.temperature += 1;
+      if (typeof point.humidity === "number") coverage.humidity += 1;
+      if (typeof point.co2 === "number") coverage.co2 += 1;
+      if (typeof point.light === "number") coverage.light += 1;
+    }
+    return [
+      { name: "Temp", value: coverage.temperature },
+      { name: "Humidity", value: coverage.humidity },
+      { name: "CO2", value: coverage.co2 },
+      { name: "Light", value: coverage.light },
+    ].filter((item) => item.value > 0);
+  }, [history]);
+
   const isDarkMode =
     typeof document !== "undefined" &&
     document.documentElement.classList.contains("dark");
@@ -65,6 +104,7 @@ export default function TelemetryPage() {
     border: `1px solid ${isDarkMode ? "#334155" : "#e5e7eb"}`,
     color: isDarkMode ? "#f8fafc" : "#0f172a",
   };
+  const pieColors = ["#2563eb", "#06b6d4", "#16a34a", "#f59e0b"];
 
   return (
     <PageLayout>
@@ -191,6 +231,86 @@ export default function TelemetryPage() {
         </CardContent>
       </Card>
 
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Multi-signal Overview</CardTitle>
+            <CardDescription>
+              Combined 24-hour trend for temperature and humidity.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pl-0">
+            <div className="h-72 w-full min-w-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={history}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} />
+                  <XAxis dataKey="timestamp" stroke={chartAxis} fontSize={10} />
+                  <YAxis stroke={chartAxis} fontSize={12} />
+                  <Tooltip contentStyle={chartTooltipStyle} />
+                  <Legend />
+                  <Area
+                    type="monotone"
+                    dataKey="temp"
+                    name="Temp"
+                    stroke="#2563eb"
+                    fill="#93c5fd"
+                    fillOpacity={0.35}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="humidity"
+                    name="Humidity"
+                    stroke="#0891b2"
+                    fill="#67e8f9"
+                    fillOpacity={0.2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Signal Coverage</CardTitle>
+            <CardDescription>
+              Share of available points by signal in selected zone.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72 w-full min-w-0">
+              {signalCoverageData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={signalCoverageData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={95}
+                      label
+                    >
+                      {signalCoverageData.map((entry, index) => (
+                        <Cell
+                          key={`${entry.name}-${index}`}
+                          fill={pieColors[index % pieColors.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={chartTooltipStyle} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Not enough points for a coverage chart.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Sensor History</CardTitle>
@@ -236,32 +356,53 @@ export default function TelemetryPage() {
               {isLoading ? (
                 <p className="text-sm text-muted-foreground">Loading...</p>
               ) : sensorHistory.length > 0 ? (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="p-2 text-left">Time</th>
-                      <th className="p-2 text-left">Zone</th>
-                      <th className="p-2 text-right">Value</th>
-                      <th className="p-2 text-left">Unit</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sensorHistory.map((row) => (
-                      <tr key={row.id} className="border-b">
-                        <td className="p-2">
-                          {new Date(row.timestamp).toLocaleString()}
-                        </td>
-                        <td className="p-2">
-                          {zones.find((z) => z.id === row.siteId)?.name || row.siteId}
-                        </td>
-                        <td className="p-2 text-right font-mono">
-                          {row.value.toFixed(2)}
-                        </td>
-                        <td className="p-2">{row.unit || "N/A"}</td>
+                <div className="space-y-4">
+                  <div className="h-80 w-full min-w-0 rounded-lg border bg-white/60 p-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={sensorHistoryChartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} />
+                        <XAxis dataKey="time" stroke={chartAxis} fontSize={11} />
+                        <YAxis stroke={chartAxis} fontSize={12} />
+                        <Tooltip contentStyle={chartTooltipStyle} />
+                        <Legend />
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          name={selectedSensor}
+                          stroke="#7c3aed"
+                          strokeWidth={2.5}
+                          dot={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="p-2 text-left">Time</th>
+                        <th className="p-2 text-left">Zone</th>
+                        <th className="p-2 text-right">Value</th>
+                        <th className="p-2 text-left">Unit</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {sensorHistory.map((row) => (
+                        <tr key={row.id} className="border-b">
+                          <td className="p-2">
+                            {new Date(row.timestamp).toLocaleString()}
+                          </td>
+                          <td className="p-2">
+                            {zones.find((z) => z.id === row.siteId)?.name || row.siteId}
+                          </td>
+                          <td className="p-2 text-right font-mono">
+                            {row.value.toFixed(2)}
+                          </td>
+                          <td className="p-2">{row.unit || "N/A"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <p className="text-sm text-muted-foreground">No data available</p>
               )}

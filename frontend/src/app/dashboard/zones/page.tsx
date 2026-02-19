@@ -22,6 +22,18 @@ import {
   useZones,
 } from "@/hooks/use-dashboard-data";
 import type { Zone } from "@/types";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 type ZoneDraft = {
   siteId: string;
@@ -89,6 +101,27 @@ export default function ZonesManagementPage() {
     [zones],
   );
 
+  const zoneTypeDistribution = useMemo(() => {
+    const counts = new Map<string, number>();
+    zones.forEach((zone) => {
+      counts.set(zone.type, (counts.get(zone.type) || 0) + 1);
+    });
+    const palette = ["#2563eb", "#7c3aed", "#16a34a", "#d97706", "#dc2626", "#0f766e"];
+    return Array.from(counts.entries()).map(([name, value], index) => ({
+      name,
+      value,
+      color: palette[index % palette.length],
+    }));
+  }, [zones]);
+
+  const zoneMetricsComparison = useMemo(() => {
+    return zones.slice(0, 10).map((zone) => ({
+      zone: zone.name,
+      temp: Number(zone.metrics.temp.value || 0),
+      humidity: Number(zone.metrics.humidity.value || 0),
+    }));
+  }, [zones]);
+
   const handleCreate = () => {
     if (!draft.siteId.trim() || !draft.name.trim()) return;
     createZoneMutation.mutate(
@@ -152,6 +185,74 @@ export default function ZonesManagementPage() {
           value={zones.length - customTypeCount}
           accentClassName="border-sky-200/70 bg-sky-50/40"
         />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Zone Type Distribution</CardTitle>
+            <CardDescription>
+              Breakdown of configured greenhouse zone types.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72 w-full">
+              {zoneTypeDistribution.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={zoneTypeDistribution}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={95}
+                      label
+                    >
+                      {zoneTypeDistribution.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No zones available for visualization.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Temp/Humidity by Zone</CardTitle>
+            <CardDescription>
+              Quick comparison of primary climate metrics.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72 w-full">
+              {zoneMetricsComparison.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={zoneMetricsComparison} margin={{ left: 8, right: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="zone" fontSize={11} tickLine={false} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="temp" fill="#2563eb" radius={[5, 5, 0, 0]} />
+                    <Bar dataKey="humidity" fill="#06b6d4" radius={[5, 5, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No metrics available yet.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
